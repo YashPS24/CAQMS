@@ -1,0 +1,193 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  font-family: Inter, system-ui, Avenir, Helvetica, Arial, sans-serif;
+  line-height: 1.5;
+  font-weight: 400;
+}
+
+body {
+  margin: 0;
+  min-width: 320px;
+  min-height: 100vh;
+  background-color: #f3f4f6;
+}
+
+#root {
+  min-height: 100vh;
+}
+
+@font-face {
+  font-family: "Khmer OS";
+  src: url("/fonts/Khmer-Regular.ttf") format("truetype");
+}
+
+.react-datepicker-popper-z-50 {
+  z-index: 50 !important;
+}
+
+/* --- ADD KEYFRAME ANIMATION FOR FOCUS INDICATOR --- */
+@keyframes ping-once {
+  75%,
+  100% {
+    transform: scale(1.5);
+    opacity: 0;
+  }
+}
+
+.animate-ping-once {
+  animation: ping-once 1s cubic-bezier(0, 0, 0.2, 1);
+}
+
+@layer components {
+  /* Button for adding question types */
+  .btn-secondary {
+    @apply px-4 py-2 bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-200 rounded-md shadow-sm hover:bg-gray-300 dark:hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 text-sm font-medium;
+  }
+
+  /* Language tabs in the question editor */
+  .lang-tab {
+    @apply py-2 px-3 text-sm font-medium text-gray-500 dark:text-gray-400 border-b-2 border-transparent hover:text-gray-700 hover:border-gray-300 dark:hover:text-gray-200 dark:hover:border-gray-500;
+  }
+  .lang-tab-active {
+    @apply border-indigo-500 text-indigo-600 dark:text-indigo-400;
+  }
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: #f1f1f1;
+  border-radius: 10px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #888;
+  border-radius: 10px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #555;
+}
+
+/* Dark mode scrollbar */
+.dark ::-webkit-scrollbar-track {
+  background: #1f2937;
+}
+
+.dark ::-webkit-scrollbar-thumb {
+  background: #4b5563;
+}
+
+.dark ::-webkit-scrollbar-thumb:hover {
+  background: #6b7280;
+}
+
+/* React DatePicker dark mode support */
+.dark .react-datepicker {
+  background-color: #1f2937 !important;
+  border-color: #374151 !important;
+}
+
+.dark .react-datepicker__header {
+  background-color: #374151 !important;
+  border-bottom-color: #4b5563 !important;
+}
+
+.dark .react-datepicker__current-month,
+.dark .react-datepicker__day-name,
+.dark .react-datepicker__day {
+  color: #f3f4f6 !important;
+}
+
+.dark .react-datepicker__day:hover {
+  background-color: #4b5563 !important;
+}
+
+.dark .react-datepicker__day--selected {
+  background-color: #6366f1 !important;
+}
+
+/* Smooth transitions */
+* {
+  transition-property: background-color, border-color, color, fill, stroke;
+  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+  transition-duration: 200ms;
+}
+
+/* Focus visible for accessibility */
+*:focus-visible {
+  outline: 2px solid #6366f1;
+  outline-offset: 2px;
+}
+
+/* Animation utilities */
+@keyframes slideInFromTop {
+  from {
+    transform: translateY(-100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+@keyframes pulse-soft {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.8;
+  }
+}
+
+.animate-slide-in {
+  animation: slideInFromTop 0.3s ease-out;
+}
+
+.animate-pulse-soft {
+  animation: pulse-soft 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+/* 
+  custom properties (CSS Variables).
+*/
+:root {
+  /* Light Theme Variables */
+  --color-bg-primary: #ffffff; /* white */
+  --color-bg-secondary: #f9fafb; /* gray-50 */
+  --color-bg-accent: #e0e7ff; /* indigo-200 */
+  --color-bg-accent-hover: #4f46e5; /* indigo-600 */
+  --color-bg-accent-active: #c7d2fe; /* indigo-300 */
+
+  --color-text-primary: #111827; /* gray-900 */
+  --color-text-secondary: #6b7280; /* gray-500 */
+  --color-text-accent: #3730a3; /* indigo-800 */
+
+  --color-border: #d1d5db; /* gray-300 */
+  --color-border-hover: #9ca3af; /* gray-400 */
+}
+
+html.dark {
+  /* Dark Theme Variable Overrides */
+  --color-bg-primary: #111827; /* gray-900 */
+  --color-bg-secondary: #1f2937; /* gray-800 */
+  --color-bg-accent: #374151; /* gray-700 */
+  --color-bg-accent-hover: #4338ca; /* indigo-700 */
+  --color-bg-accent-active: #4f46e5; /* indigo-600 */
+
+  --color-text-primary: #f9fafb; /* gray-50 */
+  --color-text-secondary: #9ca3af; /* gray-400 */
+  --color-text-accent: #c7d2fe; /* indigo-300 */
+
+  --color-border: #4b5563; /* gray-600 */
+  --color-border-hover: #6b7280; /* gray-500 */
+}
