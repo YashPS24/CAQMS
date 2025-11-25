@@ -1,24 +1,18 @@
-import { useState } from 'react'
-import reactLogo from './assets/react.svg'
-import viteLogo from '/vite.svg'
-import './App.css'
-
 import {
-  Route,
   BrowserRouter as Router,
+  Route,
   Routes
 } from "react-router-dom";
 import "../src/lang/i18n";
 import Home from "./pages/Home.jsx";
-
+import Navbar from "./components/Navbar";
 
 function AppContent() {
-  const [count, setCount] = useState(0)
-
   return (
     <div className="min-h-screen bg-gray-50">
+      <Navbar />
       <Routes>
-          <Route path="/" element={<Home />} />
+        <Route path="/" element={<Home />} />
       </Routes>
     </div> 
   );
