@@ -1,10 +1,11 @@
-import React, { useState, useMemo, useRef, useEffect } from "react";
+import axios from "axios";
+import React, { useState, useMemo, useRef, useEffect, useCallback } from "react";
 import { useTranslation } from "react-i18next";
 import { Link, useNavigate } from "react-router-dom";
-// import { useAuth } from "./authentication/AuthContext";
-// import { useTheme } from "./context/ThemeContext";
-// import { API_BASE_URL } from "../../config";
-// import LanguageSwitcher from "../components/layout/LangSwitch";
+import { useAuth } from "./authentication/AuthContext";
+import { useTheme } from "./context/ThemeContext";
+import { API_BASE_URL } from "../../config";
+import LanguageSwitcher from "../components/layout/LangSwitch";
 // import YQMSAIChatBox from "../pages/YQMSAIChatBox";
 
 // import NormalNotifications from "./NormalNotifications";
@@ -29,12 +30,16 @@ import {
   Bot
 } from "lucide-react";
 
-export default function Navbar() {
+export default function Navbar({ onLogout }) {
   const { t } = useTranslation();
   const navigate = useNavigate();
-
+  const { user, clearUser } = useAuth();
+  const { theme, toggleTheme } = useTheme();
+  const [roleManagement, setRoleManagement] = useState(null);
+  const [userRoles, setUserRoles] = useState([]);
+  const [accessMap, setAccessMap] = useState({});
   const [isMenuOpen, setIsMenuOpen] = useState(null);
-  const [isProfileOpen, setIsProfileOpen] = useState(false);
+  const [isProfileOpen, setIsProfileOpen] = useState(false);;
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [mobileExpandedSection, setMobileExpandedSection] = useState(null);
 
@@ -200,10 +205,97 @@ export default function Navbar() {
     [t]
   );
 
+   // All access control logic from Home.jsx, adapted for Navbar
+  const fetchData = useCallback(async () => {
+  if (!user) return;
+
+  try {
+    const [roleManagementRes, userRolesRes] = await Promise.all([
+      axios.get(`${API_BASE_URL}/api/role-management`),
+      axios.get(`${API_BASE_URL}/api/user-roles/${user.emp_id}`)
+    ]);
+
+    setRoleManagement(roleManagementRes.data);
+    setUserRoles(userRolesRes.data.roles);
+
+    const pageIdsToCheck = [
+      ...new Set(
+        navStructure
+          .flatMap((s) => s.items)
+          .filter((item) => item.pageId)
+          .map((item) => item.pageId)
+      )
+    ];
+
+    // Uncomment and fix this when you have the endpoint
+    const accessPromises = pageIdsToCheck.map((pageId) =>
+      axios.get(
+        `${API_BASE_URL}/api/ie/role-management/access-check?emp_id=${user.emp_id}&page=${pageId}`
+      )
+    );
+
+    const results = await Promise.all(accessPromises);
+    const newAccessMap = {};
+    results.forEach((res, index) => {
+      newAccessMap[pageIdsToCheck[index]] = res.data.hasAccess;
+    });
+    setAccessMap(newAccessMap);
+  } catch (error) {
+    console.error("Error fetching Navbar permissions:", error);
+  }
+}, [user, navStructure]); // Add navStructure to dependencies
+
+
+  useEffect(() => {
+    fetchData();
+  }, [fetchData]);
+
+  // Updated hasAccess to handle requiredEmpIds on individual items
+  const hasAccess = useCallback(
+    (item) => {
+      if (!user) return false;
+
+      // Check if access is restricted by employee ID first
+      if (item.requiredEmpIds) {
+        return item.requiredEmpIds.includes(user.emp_id);
+      }
+
+      // Fallback to role-based access
+      const isSuperAdmin = userRoles.includes("Super Admin");
+      const isAdmin = userRoles.includes("Admin");
+      if (isSuperAdmin || isAdmin) return true;
+
+      if (item.pageId) return accessMap[item.pageId] === true;
+
+      if (item.roles && roleManagement && user.job_title) {
+        return roleManagement.some(
+          (role) =>
+            item.roles.includes(role.role) &&
+            role.jobTitles.includes(user.job_title)
+        );
+      }
+      return false;
+    },
+    [user, userRoles, roleManagement, accessMap]
+  );
+
   // Filter the entire nav structure based on access
   const accessibleNav = useMemo(() => {
-    return navStructure;
-  }, [navStructure]);
+    if (!userRoles || !user) return [];
+    return navStructure
+      .map((section) => ({
+        ...section,
+        items: section.items.filter((item) => hasAccess(item))
+      }))
+      .filter((section) => hasAccess(section) || section.items.length > 0);
+  }, [navStructure, hasAccess, userRoles, user]);
+
+  const handleSignOut = () => {
+    clearUser();
+    onLogout();
+    navigate("/", { replace: true });
+  };
+
 
   const toggleDropdown = (sectionId) =>
     setIsMenuOpen((prev) => (prev === sectionId ? null : sectionId));
@@ -233,21 +325,24 @@ export default function Navbar() {
       <nav className="bg-white/80 dark:bg-slate-900/80 backdrop-blur-sm shadow-md fixed top-0 left-0 right-0 z-50 transition-colors">
         <div className="max-w-screen-2xl mx-auto px-2 sm:px-4 lg:px-6">
           <div className="flex justify-between h-16 items-center">
-            <div className="flex items-center flex-1 min-w-0"> 
+            <div className="flex items-center flex-1 min-w-0">
               {/* Fix: Replace the previous logo block with this single Link component */}
               <Link
-                to="/home"
-                className="
-                  flex-shrink-0 rounded-lg px-4 py-1
-                  text-xl font-bold
-                  transition-all duration-300 ease-in-out
-                  bg-transparent text-blue-600 dark:text-blue-400
-                  hover:bg-gradient-to-r hover:from-yellow-400 hover:to-orange-500
-                  hover:text-white dark:hover:text-slate-900
-                "
-              >
-                CAQMS
-              </Link>
+                  to="/home"
+                  className="
+                    flex items-center flex-shrink-0 rounded-lg px-4 py-1
+                    transition-all duration-300 ease-in-out
+                    bg-transparent
+                    hover:bg-gradient-to-r hover:from-yellow-400 hover:to-orange-500
+                  "
+                >
+                  <img 
+                    src="assets/Home/CAQMS.png" 
+                    alt="CAQMS Logo" 
+                    className="w-16 h-16 object-contain"
+                  />
+                </Link>
+
 
               {/* --- DESKTOP NAVIGATION FIX --- */}
               <div className="hidden md:flex items-center ml-4" ref={navRef}>
@@ -289,17 +384,76 @@ export default function Navbar() {
             </div>
             {/* Right Side: Actions */}
             <div className="flex items-center space-x-2 sm:space-x-3">
-              {/* <LanguageSwitcher /> */}
+              <LanguageSwitcher />
               {/* --- INSERT START: NOTIFICATIONS --- */}
               {/* Only show notifications if user is logged in */}
-              {/* {user && (
+              {/* {user && ( */}
                 <>
-                  <SpecialNotifications />
-                  <NormalNotifications />
+                  {/* <SpecialNotifications /> */}
+                  {/* <NormalNotifications /> */}
                 </>
-              )} */}
+              {/* )} */}
               {/* --- ADD THE AI BOT BUTTON HERE --- */}
-
+              {/* <button
+                onClick={() => setIsChatOpen((prev) => !prev)}
+                className="p-2 rounded-full text-slate-600 dark:text-slate-300 hover:bg-gray-200 dark:hover:bg-slate-800 transition-colors relative"
+                aria-label="Open AI Chat"
+              >
+                <Bot className="w-5 h-5" /> */}
+                {/* Optional: Add a notification dot */}
+                {/* <span className="absolute top-1 right-1 block h-2 w-2 rounded-full bg-blue-500 ring-2 ring-white dark:ring-slate-900" /> */}
+              {/* </button> */}
+              <button
+                onClick={toggleTheme}
+                className="p-2 rounded-full text-slate-600 dark:text-slate-300 hover:bg-gray-200 dark:hover:bg-slate-800 transition-colors"
+              >
+                {theme === "light" ? (
+                  <Moon className="w-5 h-5" />
+                ) : (
+                  <Sun className="w-5 h-5" />
+                )}
+              </button>
+              {user && (
+                <div className="relative" ref={profileMenuRef}>
+                  <button
+                    onClick={() => setIsProfileOpen((p) => !p)}
+                    className="flex items-center space-x-2"
+                  >
+                    <img
+                      src={user.face_photo || "/default-avatar.png"}
+                      alt={user.name}
+                      className="h-8 w-8 rounded-full object-cover"
+                    />
+                    <span className="hidden lg:inline text-sm font-medium text-slate-700 dark:text-slate-200">
+                      {user.name}
+                    </span>
+                    <ChevronDown
+                      className={`w-4 h-4 text-slate-500 transition-transform ${
+                        isProfileOpen ? "rotate-180" : ""
+                      }`}
+                    />
+                  </button>
+                  {isProfileOpen && (
+                    <div className="absolute right-0 mt-2 w-48 origin-top-right rounded-md shadow-lg bg-white dark:bg-slate-800 ring-1 ring-black dark:ring-slate-700 ring-opacity-5 focus:outline-none py-1">
+                      <Link
+                        to="/profile"
+                        onClick={closeAllDropdowns}
+                        className="flex items-center w-full px-4 py-2 text-sm text-slate-700 dark:text-slate-200 hover:bg-gray-100 dark:hover:bg-slate-700"
+                      >
+                        <User className="w-4 h-4 mr-2" />
+                        Profile
+                      </Link>
+                      <button
+                        onClick={handleSignOut}
+                        className="flex items-center w-full px-4 py-2 text-sm text-slate-700 dark:text-slate-200 hover:bg-gray-100 dark:hover:bg-slate-700"
+                      >
+                        <LogOut className="w-4 h-4 mr-2" />
+                        Sign out
+                      </button>
+                    </div>
+                  )}
+                </div>
+              )}
               <div className="md:hidden">
                 <button
                   onClick={() => setIsMobileMenuOpen(true)}

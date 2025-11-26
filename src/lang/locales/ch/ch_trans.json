@@ -31,6 +31,21 @@
     "systemadmin": "System Administration",
     "yqms": "YQMS",
     "b-grade_defects": "B-grade defects"
+  },
+  "nav": {
+    "orders": "订单",
+    "qc": "QC",
+    "qa": "QA",
+    "report": "报告",
+    "setting": "设置",
+    "roles": "角色",
+    "users": "用户"
+  },
+
+   "languages": {
+    "en": "英语",
+    "kh": "高棉语",
+    "ch": "中国人"
   }
 }
 

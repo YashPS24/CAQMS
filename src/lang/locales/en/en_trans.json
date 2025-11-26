@@ -48,5 +48,21 @@
     "qa_templates": "QA Templates",
     "y_pivot_inspection": "QA Inspection",
     "afterIroning": "After Ironing"
+  },
+  
+  "nav": {
+    "orders": "Orders",
+    "qc": "QC",
+    "qa": "QA",
+    "report": "Report",
+    "setting": "Setting",
+    "roles": "Roles",
+    "users": "Users"
+  },
+  
+  "languages": {
+    "en": "English",
+    "kh": "Khmer",
+    "ch": "Chinese"
   }
 }

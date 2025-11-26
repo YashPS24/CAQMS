@@ -31,5 +31,20 @@
     "systemadmin": "System Administration",
     "yqms": "YQMS",
     "b-grade_defects": "B-grade defects"
+  },
+  "nav": {
+    "orders": "ការបញ្ជាទិញ",
+    "qc": "QC",
+    "qa": "QA",
+    "report": "របាយការណ៍",
+    "setting": "ការកំណត់",
+    "roles": "តួនាទី",
+    "users": "អ្នកប្រើប្រាស់"
+  },
+  
+  "languages": {
+    "en": "ភាសាអង់គ្លេស",
+    "kh": "ខ្មែរ",
+    "ch": "ចិន"
   }
 }
