@@ -12,6 +12,7 @@ import user from "./routes/User/userRoutes.js";
 ------------------------------ */
 /* ------------IE Admin-----------------*/
 import ieQCRoleManagement from "./routes/QC2System/IEAdmin/IEQCRolerManagementRoutes.js";
+// import { closeSQLPools } from "./controller/SQL/sqlController.js";
 
 /* -----------------------------
 User Routes
@@ -25,6 +26,17 @@ app.use(user);
 ------------------------------ */
 /* -----------IE Admin -----------------*/
 app.use(ieQCRoleManagement);
+
+// process.on("SIGINT", async () => {
+//   try {
+//     await closeSQLPools();
+//     console.log("SQL connection pools closed.");
+//   } catch (err) {
+//     console.error("Error closing SQL connection pools:", err);
+//   } finally {
+//     process.exit(0);
+//   }
+// });
 
 app.get("/api/health", (req, res) => {
   res.json({ status: "ok" });

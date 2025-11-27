@@ -3,6 +3,7 @@ import mongoose from "mongoose";
 //Schemas
 import createUserModel from "../../models/User/User.js";
 import createRoleManagmentModel from "../../models/Role/RoleManagment.js";
+import createDTOrdersSchema from "../../models/DT_Orders/dt_orders.js";
 
 
 // MongoDB Connections
@@ -30,6 +31,7 @@ caEcoConnection.on("error", (err) => console.error("❌ unexpected error:", err)
 // Collections
 export const UserMain = createUserModel(caEcoConnection);
 export const RoleManagment = createRoleManagmentModel(caProdConnection);
+export const DtOrder = createDTOrdersSchema(caProdConnection);
 
 // Disconnect DB connection
 export async function disconnectMongoDB() {
