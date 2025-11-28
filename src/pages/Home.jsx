@@ -16,25 +16,7 @@ import {
   List,
   Filter
 } from "lucide-react";
-
-// --- Theme Hook for Dark Mode ---
-const useTheme = () => {
-  const [theme, setTheme] = useState(
-    () => localStorage.getItem("home-theme") || "light"
-  );
-
-  useEffect(() => {
-    const root = window.document.documentElement;
-    root.classList.remove(theme === "dark" ? "light" : "dark");
-    root.classList.add(theme);
-    localStorage.setItem("home-theme", theme);
-  }, [theme]);
-
-  const toggleTheme = () =>
-    setTheme((prev) => (prev === "light" ? "dark" : "light"));
-
-  return { theme, toggleTheme };
-};
+import useTheme from "../pages/useTheme";
 
 function Home() {
   const { t } = useTranslation();
@@ -409,7 +391,7 @@ function Home() {
       </nav>
 
       {/* Main Content */}
-      <main className="pt-32 pb-8">
+      <main className="pt-4 pb-8">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           {/* Stats Overview
           <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">

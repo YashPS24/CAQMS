@@ -1,19 +1,12 @@
 export const cleanWashingSpecData = (data) => {
-  console.log('=== DEBUGGING EXCEL DATA STRUCTURE ===');
-  console.log('Total rows in data:', data.length);
   
-  // Log first few rows to understand structure
-  data.slice(0, 6).forEach((row, index) => {
-    console.log(`Row ${index}:`, row);
-  });
 
   if (!data || data.length < 5) {
     throw new Error("Insufficient data or wrong format.");
   }
 
   // Extract color information from row 2 (index 1)
-  const colorRow = data[1];
-  console.log('Color row:', colorRow);
+  const colorRow = data[1];;
   
   let colorInfo = null;
   let shrinkageInfo = null;
@@ -23,7 +16,6 @@ export const cleanWashingSpecData = (data) => {
     const colorText = colorRow.find(cell => 
       cell && typeof cell === 'string' && (cell.includes('颜色') || cell.includes('COLOR'))
     );
-    console.log('Found color text:', colorText);
     
     if (colorText) {
       // Try multiple patterns for color extraction
@@ -43,9 +35,7 @@ export const cleanWashingSpecData = (data) => {
       }
     }
 
-    // Extract shrinkage information from K2 cell (index 10)
-    const shrinkageText = colorRow[10]; // K column is index 10
-    console.log('Found shrinkage text:', shrinkageText);
+    const shrinkageText = colorRow[10]; 
     
     if (shrinkageText && typeof shrinkageText === 'string' && shrinkageText.includes('缩率')) {
       // Parse shrinkage data like "缩率：L-1% W:-6%"
@@ -60,17 +50,9 @@ export const cleanWashingSpecData = (data) => {
     }
   }
   
-  console.log('Extracted color info:', colorInfo);
-  console.log('Extracted shrinkage info:', shrinkageInfo);
-
-  // Row 3 (index 2): Wash type indicators (客人尺寸, 洗前)
-  // Row 4 (index 3): Size names (XS, S, M, L, XL, XXL)
-  const washTypeRow = data[2];  // Wash type indicators
-  const sizeHeaderRow = data[3]; // Size names
+  const washTypeRow = data[2];  
+  const sizeHeaderRow = data[3]; 
   
-  console.log('=== HEADER ANALYSIS ===');
-  console.log('Wash Type Row (index 2):', washTypeRow);
-  console.log('Size Header Row (index 3):', sizeHeaderRow);
   
   const headers = [];
   const sizeGroups = {};
@@ -81,14 +63,11 @@ export const cleanWashingSpecData = (data) => {
       const sizeCell = sizeHeaderRow[i];
       const washTypeCell = washTypeRow ? washTypeRow[i] : null;
       
-      console.log(`Column ${i}: Size="${sizeCell}", WashType="${washTypeCell}"`);
-      
       if (sizeCell && typeof sizeCell === 'string' && sizeCell.trim() !== '') {
         const sizeName = cleanValue(sizeCell.trim());
         
         // Check if this looks like a standard size (XS, S, M, L, XL, XXL)
         if (sizeName.match(/^(XS|S|M|L|XL|XXL)$/i)) {
-          console.log(`Found valid size: ${sizeName} at column ${i}`);
           
           // Initialize size group if not exists
           if (!sizeGroups[sizeName]) {
@@ -214,10 +193,7 @@ export const cleanWashingSpecData = (data) => {
     }
   });
 
-  console.log('=== FINAL RESULTS ===');
-  console.log('Cleaned rows count:', cleanedRows.length);
-  console.log('Headers found:', headers.length);
-  console.log('Sample cleaned row:', cleanedRows[0]);
+
 
   return {
     colorInfo,
