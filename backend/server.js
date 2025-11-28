@@ -12,6 +12,14 @@ import user from "./routes/User/userRoutes.js";
 ------------------------------ */
 /* ------------IE Admin-----------------*/
 import ieQCRoleManagement from "./routes/QC2System/IEAdmin/IEQCRolerManagementRoutes.js";
+/* -----------------------------
+Common File Imports
+------------------------------ */
+/*-------------DT-Orders Imports --------------*/
+import dtOrders from "./routes/Common/DTOrdersRoutes.js";
+
+
+
 // import { closeSQLPools } from "./controller/SQL/sqlController.js";
 
 /* -----------------------------
@@ -26,6 +34,12 @@ app.use(user);
 ------------------------------ */
 /* -----------IE Admin -----------------*/
 app.use(ieQCRoleManagement);
+
+/* -----------------------------
+Commin file  Routes
+------------------------------ */
+/* ----------- DT_Orders -----------------*/
+app.use(dtOrders);
 
 // process.on("SIGINT", async () => {
 //   try {

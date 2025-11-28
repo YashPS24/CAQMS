@@ -97,12 +97,12 @@ function Home() {
              version: '0',
           },
           {
-            path: "",
+            path: "/upload-beforewash-specs",
             roles: ["Washing Clerk"],
             image: "assets/Home/uploadspecs.png",
             title: t("home.upload_beforewash_specs"),
             description: "Upload Beforewash Specs",
-             version: '0',
+             version: '0.1',
           },
           {
             path: "",

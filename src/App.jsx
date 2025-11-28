@@ -22,6 +22,7 @@ import { ThemeProvider } from "./components/context/ThemeContext";
 // Authentication components
 import UserList from "./components/users/userList";
 import Profile from "./pages/Auth/Profile";
+import UploadWashingSpecs from "./pages/UploadWashingSpecs.jsx";
 
 function AppContent() {
   const [isAuthenticated, setIsAuthenticated] = useState(() => {
@@ -308,6 +309,10 @@ function AppContent() {
                     <Navigate to="/details" replace />
                   )
                 }
+              />
+               <Route
+                path="/upload-beforewash-specs"
+                element={<UploadWashingSpecs />}
               />
             </>
           ) : (

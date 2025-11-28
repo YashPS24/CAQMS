@@ -1,9 +1,10 @@
 import mongoose from 'mongoose';
 
+
 // Schema for OrderQty - array of objects with size names as keys
 const OrderQtyItemSchema = new mongoose.Schema({}, { 
   strict: false, // Allow dynamic keys like {"XS": 167}
-  _id: false 
+  _id: true // Enable _id for this schema
 });
 
 // Schema for individual size cut quantity data
@@ -18,32 +19,17 @@ const SizeCutQtySchema = new mongoose.Schema({
     required: false,
     default: 0
   }
-}, { _id: false });
+}, { _id: true }); // Enable _id for this schema
 
 // Updated CutQty Schema - more explicit structure
 const CutQtySchema = new mongoose.Schema({}, { 
   strict: false, // Allow dynamic size keys like "XS", "S", "M", etc.
-  _id: false 
+  _id: true // Enable _id for this schema
 });
-
-// Alternative approach - if you want to be more explicit about the structure
-// You can also define it this way, but the above approach is more flexible
-/*
-const CutQtySchema = new mongoose.Schema({
-  // This would require you to know all possible size names in advance
-  // XS: SizeCutQtySchema,
-  // S: SizeCutQtySchema,
-  // M: SizeCutQtySchema,
-  // etc...
-}, { 
-  strict: false, // Still allow other dynamic keys
-  _id: false 
-});
-*/
 
 const SpecsSchema = new mongoose.Schema({}, { 
   strict: false, // Allow dynamic size keys
-  _id: false 
+  _id: true // Enable _id for this schema
 });
 
 const SizeSpecSchema = new mongoose.Schema({
@@ -135,7 +121,7 @@ const SizeSpecSchema = new mongoose.Schema({
     default: null
   },
   Specs: [SpecsSchema] // Array of objects with dynamic keys
-}, { _id: false });
+}, { _id: true }); // Enable _id for this schema
 
 const ShipSeqNoSchema = new mongoose.Schema({
   seqNo: {
@@ -148,7 +134,7 @@ const ShipSeqNoSchema = new mongoose.Schema({
     default: null
   },
   sizes: [OrderQtyItemSchema]
-}, { _id: false });
+}, { _id: true }); // Enable _id for this schema
 
 const OrderColorShipSchema = new mongoose.Schema({
   ColorCode: {
@@ -168,7 +154,7 @@ const OrderColorShipSchema = new mongoose.Schema({
     required: false
   },
   ShipSeqNo: [ShipSeqNoSchema]
-}, { _id: false });
+}, { _id: true }); // Enable _id for this schema
 
 const OrderColorsSchema = new mongoose.Schema({
   ColorCode: {
@@ -189,7 +175,7 @@ const OrderColorsSchema = new mongoose.Schema({
   },
   OrderQty: [OrderQtyItemSchema], // Array of objects like [{"XS": 167}, {"S": 493}]
   CutQty: CutQtySchema // Object with dynamic size keys, each containing ActualCutQty and PlanCutQty
-}, { _id: false });
+}, { _id: true }); // Enable _id for this schema
 
 // Main Schema
 const DtOrderSchema = new mongoose.Schema({
@@ -262,10 +248,10 @@ const DtOrderSchema = new mongoose.Schema({
     default: 0
   },
   SizeList: {
-      type: [String],
-      required: false,
-      default: []
-    },
+    type: [String],
+    required: false,
+    default: []
+  },
   
   // Nested Arrays
   SizeSpec: [SizeSpecSchema],
@@ -274,6 +260,7 @@ const DtOrderSchema = new mongoose.Schema({
 }, {
   timestamps: true,
   collection: 'dt_orders'
+  // _id is enabled by default for main schemas, so no need to specify
 });
 
 // Indexes for better performance
