@@ -25,7 +25,6 @@ const PDFLoader = () => (
 );
 
 // --- Helper & Sub-components ---
-
 const fractionToDecimal = (fraction) => {
   if (!fraction || fraction === "0") return 0;
   const sign = fraction.startsWith("-") ? -1 : 1;
@@ -36,9 +35,7 @@ const fractionToDecimal = (fraction) => {
 };
 
 const SummaryCard = ({ icon, title, value, colorClass, iconBgClass }) => (
-  <div
-    className={`p-3 rounded-xl shadow-inner bg-gray-100 dark:bg-gray-700/50`}
-  >
+  <div className={`p-3 rounded-xl shadow-inner bg-gray-100 dark:bg-gray-700/50`}>
     <div className="flex items-center gap-3 mb-2">
       <div className={`p-2 rounded-full ${iconBgClass}`}>
         {React.cloneElement(icon, { className: `h-5 w-5 ${colorClass}` })}
@@ -85,9 +82,9 @@ const TallyTable = ({ tallyData }) => {
             <th className="p-2 border dark:border-gray-600 text-center">
               Tol+
             </th>
-            {dynamicColumns.map((col) => (
+            {dynamicColumns.map((col, colIndex) => (
               <th
-                key={col}
+                key={`col-${col}-${colIndex}`} // Fixed: Use unique key
                 className="p-2 border dark:border-gray-600 font-mono text-center"
               >
                 {col}
@@ -96,12 +93,12 @@ const TallyTable = ({ tallyData }) => {
           </tr>
         </thead>
         <tbody>
-          {tallyData.buyerSpecData.map((spec) => {
+          {tallyData.buyerSpecData?.map((spec, specIndex) => {
             const tolMinus = fractionToDecimal(spec.tolNeg_fraction);
             const tolPlus = fractionToDecimal(spec.tolPos_fraction);
             return (
               <tr
-                key={spec.no}
+                key={`spec-${spec.no}-${specIndex}`} // Fixed: Use unique key
                 className="dark:odd:bg-gray-800 dark:even:bg-gray-800/50"
               >
                 <td className="sticky left-0 bg-white dark:bg-gray-800/95 p-2 border dark:border-gray-600 text-center font-semibold">
@@ -119,21 +116,18 @@ const TallyTable = ({ tallyData }) => {
                 <td className="p-2 border dark:border-gray-600 text-center text-green-500">
                   {spec.tolPos_fraction}
                 </td>
-                {dynamicColumns.map((col) => {
-                  const count =
-                    tallyData.measurementsTally[spec.no]?.[col] || 0;
+                {dynamicColumns.map((col, colIndex) => {
+                  const count = tallyData.measurementsTally[spec.no]?.[col] || 0;
                   const colDecimal = fractionToDecimal(col);
-                  const isInTolerance =
-                    colDecimal >= tolMinus && colDecimal <= tolPlus;
-                  const cellBg =
-                    count > 0
-                      ? isInTolerance
-                        ? "bg-green-100 dark:bg-green-900/40"
-                        : "bg-red-100 dark:bg-red-900/40"
-                      : "";
+                  const isInTolerance = colDecimal >= tolMinus && colDecimal <= tolPlus;
+                  const cellBg = count > 0
+                    ? isInTolerance
+                      ? "bg-green-100 dark:bg-green-900/40"
+                      : "bg-red-100 dark:bg-red-900/40"
+                    : "";
                   return (
                     <td
-                      key={col}
+                      key={`cell-${spec.no}-${col}-${colIndex}`} // Fixed: Use unique key
                       className={`p-2 border dark:border-gray-600 text-center font-bold ${cellBg}`}
                     >
                       {count > 0 ? count : ""}
@@ -170,7 +164,6 @@ const ANFStyleViewFullReport = () => {
   const { moNo } = useParams();
   const [searchParams] = useSearchParams();
   const stageValue = searchParams.get("stage") || "M1";
-
   const [reportData, setReportData] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -183,16 +176,12 @@ const ANFStyleViewFullReport = () => {
         return;
       }
 
-      // Determine prefix based on query param
       const apiPrefix =
         stageValue === "M2"
           ? `${API_BASE_URL}/api/anf-measurement-packing`
           : `${API_BASE_URL}/api/anf-measurement`;
-
       try {
-        const res = await axios.get(
-          `${apiPrefix}/style-view-full-report/${moNo}` // Use prefix
-        );
+        const res = await axios.get(`${apiPrefix}/style-view-full-report/${moNo}`);
         setReportData(res.data);
       } catch (err) {
         setError(err.response?.data?.error || "Failed to load the report.");
@@ -200,26 +189,21 @@ const ANFStyleViewFullReport = () => {
         setIsLoading(false);
       }
     };
+
     fetchReport();
   }, [moNo, stageValue]);
 
-  const { orderDetails, inspectorData, summaryByColor, detailsByColor } =
-    reportData || {};
+  const { orderDetails, inspectorData, summaryByColor, detailsByColor } = reportData || {};
 
-  // --- MODIFIED: allSizes calculation to preserve original order ---
+  // --- FIXED: allSizes calculation ---
   const allSizes = useMemo(() => {
     if (!orderDetails?.orderColors || orderDetails.orderColors.length === 0) {
       return [];
     }
-    // The sizes are in an array of objects like [{ XS: 123 }, { S: 456 }].
-    // We just need to get the key from each object.
-    // We can reliably get the order from the first color's OrderQty array.
-    const firstColorOrderQty = orderDetails.orderColors[0].OrderQty;
 
-    // Map over this array and extract the key (the size name) from each object.
+    const firstColorOrderQty = orderDetails.orderColors[0].OrderQty;
     const orderedSizes = firstColorOrderQty.map((sizeObj) => {
       const sizeName = Object.keys(sizeObj)[0];
-      // Remove the extra characters like ';1' if they exist
       return sizeName.split(";")[0];
     });
 
@@ -232,10 +216,10 @@ const ANFStyleViewFullReport = () => {
     return detailsByColor.map((detail) => ({
       ...detail,
       summaryBySizeMap: new Map(
-        detail.summaryBySize.map((item) => [item.size, item])
+        detail.summaryBySize?.map((item) => [item.size, item]) || []
       ),
       tallyBySizeMap: new Map(
-        detail.tallyBySize.map((item) => [item.size, item])
+        detail.tallyBySize?.map((item) => [item.size, item]) || []
       )
     }));
   }, [detailsByColor]);
@@ -246,12 +230,14 @@ const ANFStyleViewFullReport = () => {
         <Loader2 className="h-12 w-12 animate-spin text-indigo-500" />
       </div>
     );
+
   if (error)
     return (
       <div className="flex justify-center items-center h-screen text-red-500">
         <AlertTriangle className="h-8 w-8 mr-3" /> {error}
       </div>
     );
+
   if (!reportData)
     return <div className="text-center p-8">No report data available.</div>;
 
@@ -260,8 +246,6 @@ const ANFStyleViewFullReport = () => {
       <div className="max-w-screen-2xl mx-auto space-y-8">
         <div className="flex justify-between items-center">
           <h1 className="text-xl font-bold text-center">Style Full Report</h1>
-          {/* --- PDF DOWNLOAD BUTTON --- */}
-          {/* This will only render once the data is available */}
           {reportData && (
             <PDFDownloadLink
               document={
@@ -291,22 +275,23 @@ const ANFStyleViewFullReport = () => {
         {/* --- Order Details Section --- */}
         <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-md">
           <h2 className="text-xl font-bold mb-4">Order Details</h2>
+          
           {/* Horizontal Info Blocks */}
           <div className="grid grid-cols-3 sm:grid-cols-5 xl:grid-cols-7 gap-x-6 gap-y-4 mb-6 pb-4 border-b border-gray-200 dark:border-gray-700">
-            <InfoBlock label="MO No:" value={orderDetails.moNo} isHighlighted />
-            <InfoBlock label="Buyer:" value={orderDetails.buyer} />
-            <InfoBlock label="Cust. Style:" value={orderDetails.custStyle} />
+            <InfoBlock label="MO No:" value={orderDetails?.moNo || 'N/A'} isHighlighted />
+            <InfoBlock label="Buyer:" value={orderDetails?.buyer || 'N/A'} />
+            <InfoBlock label="Cust. Style:" value={orderDetails?.custStyle || 'N/A'} />
             <InfoBlock
               label="Order Qty:"
-              value={orderDetails.orderQty_style}
+              value={orderDetails?.orderQty_style || 'N/A'}
               isHighlighted
             />
-            <InfoBlock label="Mode:" value={orderDetails.mode} />
-            <InfoBlock label="Country:" value={orderDetails.country} />
-            <InfoBlock label="Origin:" value={orderDetails.origin} />
+            <InfoBlock label="Mode:" value={orderDetails?.mode || 'N/A'} />
+            <InfoBlock label="Country:" value={orderDetails?.country || 'N/A'} />
+            <InfoBlock label="Origin:" value={orderDetails?.origin || 'N/A'} />
           </div>
 
-          {/* Size/Color Table with new styling */}
+          {/* Size/Color Table with fixed keys */}
           <div className="overflow-x-auto bg-gray-100 dark:bg-blue-900 p-4 rounded-lg">
             <table className="w-full text-sm">
               <thead>
@@ -314,9 +299,9 @@ const ANFStyleViewFullReport = () => {
                   <th className="p-3 text-left font-bold text-gray-600 dark:text-gray-300 uppercase tracking-wider text-xs w-1/3">
                     Color
                   </th>
-                  {allSizes.map((size) => (
+                  {allSizes.map((size, sizeIndex) => (
                     <th
-                      key={size}
+                      key={`size-header-${size}-${sizeIndex}`} // Fixed: Use unique key
                       className="p-3 text-center font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wider text-xs"
                     >
                       {size}
@@ -325,24 +310,25 @@ const ANFStyleViewFullReport = () => {
                 </tr>
               </thead>
               <tbody>
-                {orderDetails.orderColors.map((color) => {
+                {orderDetails?.orderColors?.map((color, colorIndex) => {
                   const sizeMap = new Map(
-                    color.OrderQty.map((q) => [
+                    color.OrderQty?.map((q) => [
                       Object.keys(q)[0].split(";")[0],
                       Object.values(q)[0]
-                    ])
+                    ]) || []
                   );
+
                   return (
                     <tr
-                      key={color.Color}
+                      key={`color-row-${color.Color}-${colorIndex}`} // Fixed: Use unique key
                       className="border-b last:border-b-0 bg-gray-300 border-gray-200 dark:bg-blue-800 dark:border-blue-700"
                     >
                       <td className="p-3 font-semibold text-gray-800 dark:text-gray-200">
                         {color.Color}
                       </td>
-                      {allSizes.map((size) => (
+                      {allSizes.map((size, sizeIndex) => (
                         <td
-                          key={size}
+                          key={`size-cell-${color.Color}-${size}-${sizeIndex}`} // Fixed: Use unique key
                           className="p-3 text-center font-semibold text-gray-600 dark:text-gray-300"
                         >
                           {sizeMap.get(size) || 0}
@@ -365,104 +351,54 @@ const ANFStyleViewFullReport = () => {
             <table className="w-full text-sm">
               <thead className="bg-gray-50 dark:bg-gray-700/60 text-xs uppercase">
                 <tr>
-                  <th rowSpan="2" className="p-2 text-left">
-                    QC ID
-                  </th>
-                  <th
-                    colSpan="3"
-                    className="p-2 text-center border-l border-r dark:border-gray-600"
-                  >
+                  <th rowSpan="2" className="p-2 text-left">QC ID</th>
+                  <th colSpan="3" className="p-2 text-center border-l border-r dark:border-gray-600">
                     Garment Details
                   </th>
-                  <th
-                    colSpan="5"
-                    className="p-2 text-center border-r dark:border-gray-600"
-                  >
+                  <th colSpan="5" className="p-2 text-center border-r dark:border-gray-600">
                     Measurement Details
                   </th>
-                  <th rowSpan="2" className="p-2 text-center">
-                    Pass% (G)
-                  </th>
-                  <th rowSpan="2" className="p-2 text-center">
-                    Pass% (P)
-                  </th>
-                  <th rowSpan="2" className="p-2 text-center">
-                    Contribution
-                  </th>
+                  <th rowSpan="2" className="p-2 text-center">Pass% (G)</th>
+                  <th rowSpan="2" className="p-2 text-center">Pass% (P)</th>
+                  <th rowSpan="2" className="p-2 text-center">Contribution</th>
                 </tr>
                 <tr className="border-t dark:border-gray-600">
-                  <th className="px-2 py-2 text-center tracking-wider border-l dark:border-gray-600">
-                    Checked
-                  </th>
+                  <th className="px-2 py-2 text-center tracking-wider border-l dark:border-gray-600">Checked</th>
                   <th className="px-2 py-2 text-center tracking-wider">OK</th>
-                  <th className="px-2 py-2 text-center tracking-wider border-r dark:border-gray-600">
-                    Reject
-                  </th>
-                  <th className="px-2 py-2 text-center tracking-wider">
-                    Points
-                  </th>
+                  <th className="px-2 py-2 text-center tracking-wider border-r dark:border-gray-600">Reject</th>
+                  <th className="px-2 py-2 text-center tracking-wider">Points</th>
                   <th className="px-2 py-2 text-center tracking-wider">Pass</th>
-                  <th className="px-2 py-2 text-center tracking-wider">
-                    Issues
-                  </th>
+                  <th className="px-2 py-2 text-center tracking-wider">Issues</th>
                   <th className="px-2 py-2 text-center tracking-wider">T+</th>
-                  <th className="px-2 py-2 text-center tracking-wider border-r dark:border-gray-600">
-                    T-
-                  </th>
+                  <th className="px-2 py-2 text-center tracking-wider border-r dark:border-gray-600">T-</th>
                 </tr>
               </thead>
               <tbody>
-                {inspectorData.map((qc) => {
-                  const passRateGarment =
-                    qc.garmentDetailsCheckedQty > 0
-                      ? (
-                          (qc.garmentDetailsOKGarment /
-                            qc.garmentDetailsCheckedQty) *
-                          100
-                        ).toFixed(2) + "%"
-                      : "N/A";
-                  const passRatePoints =
-                    qc.measurementDetailsPoints > 0
-                      ? (
-                          (qc.measurementDetailsPass /
-                            qc.measurementDetailsPoints) *
-                          100
-                        ).toFixed(2) + "%"
-                      : "N/A";
-                  const contribution =
-                    orderDetails.orderQty_style > 0
-                      ? (
-                          (qc.garmentDetailsCheckedQty /
-                            orderDetails.orderQty_style) *
-                          100
-                        ).toFixed(2) + "%"
-                      : "N/A";
+                {inspectorData?.map((qc, qcIndex) => {
+                  const passRateGarment = qc.garmentDetailsCheckedQty > 0
+                    ? ((qc.garmentDetailsOKGarment / qc.garmentDetailsCheckedQty) * 100).toFixed(2) + "%"
+                    : "N/A";
+                  const passRatePoints = qc.measurementDetailsPoints > 0
+                    ? ((qc.measurementDetailsPass / qc.measurementDetailsPoints) * 100).toFixed(2) + "%"
+                    : "N/A";
+                  const contribution = orderDetails?.orderQty_style > 0
+                    ? ((qc.garmentDetailsCheckedQty / orderDetails.orderQty_style) * 100).toFixed(2) + "%"
+                    : "N/A";
+
                   return (
                     <tr
-                      key={qc.qcID}
+                      key={`qc-row-${qc.qcID}-${qcIndex}`} // Fixed: Use unique key
                       className="border-b last:border-b-0 dark:border-gray-700 text-center"
                     >
                       <td className="p-2 font-bold text-left">{qc.qcID}</td>
                       <td className="p-2">{qc.garmentDetailsCheckedQty}</td>
-                      <td className="p-2 text-green-600 dark:text-green-400">
-                        {qc.garmentDetailsOKGarment}
-                      </td>
-                      <td className="p-2 text-red-600 dark:text-red-400">
-                        {qc.garmentDetailsRejected}
-                      </td>
+                      <td className="p-2 text-green-600 dark:text-green-400">{qc.garmentDetailsOKGarment}</td>
+                      <td className="p-2 text-red-600 dark:text-red-400">{qc.garmentDetailsRejected}</td>
                       <td className="p-2">{qc.measurementDetailsPoints}</td>
-                      <td className="p-2 text-green-600 dark:text-green-400">
-                        {qc.measurementDetailsPass}
-                      </td>
-                      <td className="p-2 text-red-600 dark:text-red-400">
-                        {qc.measurementDetailsTotalIssues}
-                      </td>
-                      <td className="p-2 text-rose-500">
-                        {qc.measurementDetailsTolPositive}
-                      </td>
-                      <td className="p-2 text-red-500">
-                        {qc.measurementDetailsTolNegative}
-                      </td>
+                      <td className="p-2 text-green-600 dark:text-green-400">{qc.measurementDetailsPass}</td>
+                      <td className="p-2 text-red-600 dark:text-red-400">{qc.measurementDetailsTotalIssues}</td>
+                      <td className="p-2 text-rose-500">{qc.measurementDetailsTolPositive}</td>
+                      <td className="p-2 text-red-500">{qc.measurementDetailsTolNegative}</td>
                       <td className="p-2 font-semibold">{passRateGarment}</td>
                       <td className="p-2 font-semibold">{passRatePoints}</td>
                       <td className="p-2 font-bold">{contribution}</td>
@@ -483,93 +419,50 @@ const ANFStyleViewFullReport = () => {
             <table className="w-full text-sm">
               <thead className="bg-gray-50 dark:bg-gray-700/60 text-xs uppercase">
                 <tr>
-                  <th rowSpan="2" className="p-2 text-left">
-                    Color
-                  </th>
-                  <th
-                    colSpan="3"
-                    className="p-2 text-center border-l border-r dark:border-gray-600"
-                  >
+                  <th rowSpan="2" className="p-2 text-left">Color</th>
+                  <th colSpan="3" className="p-2 text-center border-l border-r dark:border-gray-600">
                     Garment Details
                   </th>
-                  <th
-                    colSpan="5"
-                    className="p-2 text-center border-r dark:border-gray-600"
-                  >
+                  <th colSpan="5" className="p-2 text-center border-r dark:border-gray-600">
                     Measurement Details
                   </th>
-                  <th rowSpan="2" className="p-2 text-center">
-                    Pass% (G)
-                  </th>
-                  <th rowSpan="2" className="p-2 text-center">
-                    Pass% (P)
-                  </th>
+                  <th rowSpan="2" className="p-2 text-center">Pass% (G)</th>
+                  <th rowSpan="2" className="p-2 text-center">Pass% (P)</th>
                 </tr>
                 <tr className="border-t dark:border-gray-600">
-                  <th className="px-2 py-2 text-center tracking-wider border-l dark:border-gray-600">
-                    Checked
-                  </th>
+                  <th className="px-2 py-2 text-center tracking-wider border-l dark:border-gray-600">Checked</th>
                   <th className="px-2 py-2 text-center tracking-wider">OK</th>
-                  <th className="px-2 py-2 text-center tracking-wider border-r dark:border-gray-600">
-                    Reject
-                  </th>
-                  <th className="px-2 py-2 text-center tracking-wider">
-                    Points
-                  </th>
+                  <th className="px-2 py-2 text-center tracking-wider border-r dark:border-gray-600">Reject</th>
+                  <th className="px-2 py-2 text-center tracking-wider">Points</th>
                   <th className="px-2 py-2 text-center tracking-wider">Pass</th>
-                  <th className="px-2 py-2 text-center tracking-wider">
-                    Issues
-                  </th>
+                  <th className="px-2 py-2 text-center tracking-wider">Issues</th>
                   <th className="px-2 py-2 text-center tracking-wider">T+</th>
-                  <th className="px-2 py-2 text-center tracking-wider border-r dark:border-gray-600">
-                    T-
-                  </th>
+                  <th className="px-2 py-2 text-center tracking-wider border-r dark:border-gray-600">T-</th>
                 </tr>
               </thead>
               <tbody>
-                {summaryByColor.map((color) => {
-                  const passRateGarment =
-                    color.garmentDetailsCheckedQty > 0
-                      ? (
-                          (color.garmentDetailsOKGarment /
-                            color.garmentDetailsCheckedQty) *
-                          100
-                        ).toFixed(2) + "%"
-                      : "N/A";
-                  const passRatePoints =
-                    color.measurementDetailsPoints > 0
-                      ? (
-                          (color.measurementDetailsPass /
-                            color.measurementDetailsPoints) *
-                          100
-                        ).toFixed(2) + "%"
-                      : "N/A";
+                {summaryByColor?.map((color, colorIndex) => {
+                  const passRateGarment = color.garmentDetailsCheckedQty > 0
+                    ? ((color.garmentDetailsOKGarment / color.garmentDetailsCheckedQty) * 100).toFixed(2) + "%"
+                    : "N/A";
+                  const passRatePoints = color.measurementDetailsPoints > 0
+                    ? ((color.measurementDetailsPass / color.measurementDetailsPoints) * 100).toFixed(2) + "%"
+                    : "N/A";
+
                   return (
                     <tr
-                      key={color.color}
+                      key={`summary-color-${color.color}-${colorIndex}`} // Fixed: Use unique key
                       className="border-b last:border-b-0 dark:border-gray-700 text-center"
                     >
                       <td className="p-2 font-bold text-left">{color.color}</td>
                       <td className="p-2">{color.garmentDetailsCheckedQty}</td>
-                      <td className="p-2 text-green-600 dark:text-green-400">
-                        {color.garmentDetailsOKGarment}
-                      </td>
-                      <td className="p-2 text-red-600 dark:text-red-400">
-                        {color.garmentDetailsRejected}
-                      </td>
+                      <td className="p-2 text-green-600 dark:text-green-400">{color.garmentDetailsOKGarment}</td>
+                      <td className="p-2 text-red-600 dark:text-red-400">{color.garmentDetailsRejected}</td>
                       <td className="p-2">{color.measurementDetailsPoints}</td>
-                      <td className="p-2 text-green-600 dark:text-green-400">
-                        {color.measurementDetailsPass}
-                      </td>
-                      <td className="p-2 text-red-600 dark:text-red-400">
-                        {color.measurementDetailsTotalIssues}
-                      </td>
-                      <td className="p-2 text-rose-500">
-                        {color.measurementDetailsTolPositive}
-                      </td>
-                      <td className="p-2 text-red-500">
-                        {color.measurementDetailsTolNegative}
-                      </td>
+                      <td className="p-2 text-green-600 dark:text-green-400">{color.measurementDetailsPass}</td>
+                      <td className="p-2 text-red-600 dark:text-red-400">{color.measurementDetailsTotalIssues}</td>
+                      <td className="p-2 text-rose-500">{color.measurementDetailsTolPositive}</td>
+                      <td className="p-2 text-red-500">{color.measurementDetailsTolNegative}</td>
                       <td className="p-2 font-semibold">{passRateGarment}</td>
                       <td className="p-2 font-semibold">{passRatePoints}</td>
                     </tr>
@@ -580,46 +473,32 @@ const ANFStyleViewFullReport = () => {
           </div>
         </div>
 
-        {/* --- MODIFIED: Detailed Breakdown by Color Section --- */}
-
+        {/* --- FIXED: Detailed Breakdown by Color Section --- */}
         {detailsByColorProcessed &&
-          detailsByColorProcessed.map((detail) => {
-            // --- FIX #1: Safely access summaryCards and provide a default empty object ---
-            // --- FIX #2: use detailsByColorProcessed instead of detailsByColor for mapping ---
+          detailsByColorProcessed.map((detail, detailIndex) => {
             const summary = detail.summaryCards || {};
+            const passRateGarment = summary?.garmentDetailsCheckedQty > 0
+              ? (summary.garmentDetailsOKGarment / summary.garmentDetailsCheckedQty) * 100
+              : null;
+            const passRatePoints = summary?.measurementDetailsPoints > 0
+              ? (summary.measurementDetailsPass / summary.measurementDetailsPoints) * 100
+              : null;
 
-            const passRateGarment =
-              summary?.garmentDetailsCheckedQty > 0
-                ? (summary.garmentDetailsOKGarment /
-                    summary.garmentDetailsCheckedQty) *
-                  100
-                : null;
-            const passRatePoints =
-              summary?.measurementDetailsPoints > 0
-                ? (summary.measurementDetailsPass /
-                    summary.measurementDetailsPoints) *
-                  100
-                : null;
-
-            // Create a new array of sizes that actually have inspection data for this color.
             const inspectedSizesForColor = allSizes.filter((size) => {
               const sizeData = detail.summaryBySizeMap.get(size);
-              // Keep the size if data exists for it AND its checked quantity is greater than 0
-              return (
-                sizeData && sizeData.sizeSummary?.garmentDetailsCheckedQty > 0
-              );
+              return sizeData && sizeData.sizeSummary?.garmentDetailsCheckedQty > 0;
             });
 
             return (
               <div
-                key={detail.color}
+                key={`detail-breakdown-${detail.color}-${detailIndex}`} // Fixed: Use unique key
                 className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-md"
               >
                 <h2 className="text-xl font-bold mb-4 text-center">
                   Color: {detail.color}
                 </h2>
+
                 <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 mb-6">
-                  {/* --- FIX #2: Use optional chaining (?.) for all summary properties --- */}
                   <SummaryCard
                     icon={<ClipboardList />}
                     title="Checked Garments"
@@ -688,119 +567,57 @@ const ANFStyleViewFullReport = () => {
                   />
                 </div>
 
-                {/* --- FIX #3: Check if summaryBySize exists before rendering its table --- */}
                 {inspectedSizesForColor.length > 0 && (
                   <div className="overflow-x-auto mb-8">
                     <table className="w-full text-sm">
                       <thead className="bg-gray-50 dark:bg-gray-700/60 text-xs uppercase">
                         <tr>
-                          <th rowSpan="2" className="p-2 text-left">
-                            Size
-                          </th>
-                          <th
-                            colSpan="3"
-                            className="p-2 text-center border-l border-r dark:border-gray-600"
-                          >
+                          <th rowSpan="2" className="p-2 text-left">Size</th>
+                          <th colSpan="3" className="p-2 text-center border-l border-r dark:border-gray-600">
                             Garment Details
                           </th>
-                          <th
-                            colSpan="5"
-                            className="p-2 text-center border-r dark:border-gray-600"
-                          >
+                          <th colSpan="5" className="p-2 text-center border-r dark:border-gray-600">
                             Measurement Details
                           </th>
-                          <th rowSpan="2" className="p-2 text-center">
-                            Pass% (G)
-                          </th>
-                          <th rowSpan="2" className="p-2 text-center">
-                            Pass% (P)
-                          </th>
+                          <th rowSpan="2" className="p-2 text-center">Pass% (G)</th>
+                          <th rowSpan="2" className="p-2 text-center">Pass% (P)</th>
                         </tr>
                         <tr className="border-t dark:border-gray-600">
-                          <th className="px-2 py-2 text-center tracking-wider border-l dark:border-gray-600">
-                            Checked
-                          </th>
-                          <th className="px-2 py-2 text-center tracking-wider">
-                            OK
-                          </th>
-                          <th className="px-2 py-2 text-center tracking-wider border-r dark:border-gray-600">
-                            Reject
-                          </th>
-                          <th className="px-2 py-2 text-center tracking-wider">
-                            Points
-                          </th>
-                          <th className="px-2 py-2 text-center tracking-wider">
-                            Pass
-                          </th>
-                          <th className="px-2 py-2 text-center tracking-wider">
-                            Issues
-                          </th>
-                          <th className="px-2 py-2 text-center tracking-wider">
-                            T+
-                          </th>
-                          <th className="px-2 py-2 text-center tracking-wider border-r dark:border-gray-600">
-                            T-
-                          </th>
+                          <th className="px-2 py-2 text-center tracking-wider border-l dark:border-gray-600">Checked</th>
+                          <th className="px-2 py-2 text-center tracking-wider">OK</th>
+                          <th className="px-2 py-2 text-center tracking-wider border-r dark:border-gray-600">Reject</th>
+                                                   <th className="px-2 py-2 text-center tracking-wider">Points</th>
+                          <th className="px-2 py-2 text-center tracking-wider">Pass</th>
+                          <th className="px-2 py-2 text-center tracking-wider">Issues</th>
+                          <th className="px-2 py-2 text-center tracking-wider">T+</th>
+                          <th className="px-2 py-2 text-center tracking-wider border-r dark:border-gray-600">T-</th>
                         </tr>
                       </thead>
                       <tbody>
-                        {/* --- MODIFICATION: Iterate over allSizes, not detail.summaryBySize --- */}
-                        {inspectedSizesForColor.map((size) => {
-                          // --- FIX #4: Safely access nested sizeSummary object ---
-                          // Look up the data for this size from our pre-processed Map
-                          const sizeSummaryData =
-                            detail.summaryBySizeMap.get(size);
-                          const s = sizeSummaryData
-                            ? sizeSummaryData.sizeSummary
-                            : {};
-                          const passG =
-                            s.garmentDetailsCheckedQty > 0
-                              ? (
-                                  (s.garmentDetailsOKGarment /
-                                    s.garmentDetailsCheckedQty) *
-                                  100
-                                ).toFixed(2) + "%"
-                              : "N/A";
-                          const passP =
-                            s.measurementDetailsPoints > 0
-                              ? (
-                                  (s.measurementDetailsPass /
-                                    s.measurementDetailsPoints) *
-                                  100
-                                ).toFixed(2) + "%"
-                              : "N/A";
+                        {inspectedSizesForColor.map((size, sizeIndex) => {
+                          const sizeSummaryData = detail.summaryBySizeMap.get(size);
+                          const s = sizeSummaryData ? sizeSummaryData.sizeSummary : {};
+                          const passG = s.garmentDetailsCheckedQty > 0
+                            ? ((s.garmentDetailsOKGarment / s.garmentDetailsCheckedQty) * 100).toFixed(2) + "%"
+                            : "N/A";
+                          const passP = s.measurementDetailsPoints > 0
+                            ? ((s.measurementDetailsPass / s.measurementDetailsPoints) * 100).toFixed(2) + "%"
+                            : "N/A";
+
                           return (
                             <tr
-                              key={size}
+                              key={`size-breakdown-${detail.color}-${size}-${sizeIndex}`} // Fixed: Use unique key
                               className="border-b last:border-b-0 dark:border-gray-700 text-center"
                             >
-                              <td className="p-2 font-bold text-left">
-                                {size}
-                              </td>
-                              <td className="p-2">
-                                {s.garmentDetailsCheckedQty || 0}
-                              </td>
-                              <td className="p-2 text-green-600 dark:text-green-400">
-                                {s.garmentDetailsOKGarment || 0}
-                              </td>
-                              <td className="p-2 text-red-600 dark:text-red-400">
-                                {s.garmentDetailsRejected || 0}
-                              </td>
-                              <td className="p-2">
-                                {s.measurementDetailsPoints || 0}
-                              </td>
-                              <td className="p-2 text-green-600 dark:text-green-400">
-                                {s.measurementDetailsPass || 0}
-                              </td>
-                              <td className="p-2 text-red-600 dark:text-red-400">
-                                {s.measurementDetailsTotalIssues || 0}
-                              </td>
-                              <td className="p-2 text-rose-500">
-                                {s.measurementDetailsTolPositive || 0}
-                              </td>
-                              <td className="p-2 text-red-500">
-                                {s.measurementDetailsTolNegative || 0}
-                              </td>
+                              <td className="p-2 font-bold text-left">{size}</td>
+                              <td className="p-2">{s.garmentDetailsCheckedQty || 0}</td>
+                              <td className="p-2 text-green-600 dark:text-green-400">{s.garmentDetailsOKGarment || 0}</td>
+                              <td className="p-2 text-red-600 dark:text-red-400">{s.garmentDetailsRejected || 0}</td>
+                              <td className="p-2">{s.measurementDetailsPoints || 0}</td>
+                              <td className="p-2 text-green-600 dark:text-green-400">{s.measurementDetailsPass || 0}</td>
+                              <td className="p-2 text-red-600 dark:text-red-400">{s.measurementDetailsTotalIssues || 0}</td>
+                              <td className="p-2 text-rose-500">{s.measurementDetailsTolPositive || 0}</td>
+                              <td className="p-2 text-red-500">{s.measurementDetailsTolNegative || 0}</td>
                               <td className="p-2 font-semibold">{passG}</td>
                               <td className="p-2 font-semibold">{passP}</td>
                             </tr>
@@ -811,29 +628,24 @@ const ANFStyleViewFullReport = () => {
                   </div>
                 )}
 
-                {/* --- FIX #5: Check if tallyBySize exists before rendering its section --- */}
-                {detail.tallyBySizeMap.size &&
-                  detail.tallyBySizeMap.size > 0 && (
-                    <>
-                      <hr className="my-8 border-dashed dark:border-gray-600" />
-                      {/* --- MODIFICATION: Iterate over allSizes, not detail.tallyBySize --- */}
-                      {allSizes.map((size) => {
-                        // Look up the tally data for this size
-                        const sizeTally = detail.tallyBySizeMap.get(size);
-                        // Only render the TallyTable if data exists for this size
-                        if (!sizeTally) return null;
+                {detail.tallyBySizeMap && detail.tallyBySizeMap.size > 0 && (
+                  <>
+                    <hr className="my-8 border-dashed dark:border-gray-600" />
+                    {allSizes.map((size, sizeIndex) => {
+                      const sizeTally = detail.tallyBySizeMap.get(size);
+                      if (!sizeTally) return null;
 
-                        return (
-                          <div key={sizeTally.size} className="mt-8">
-                            <h3 className="text-lg font-bold text-indigo-600 dark:text-indigo-400 mb-4">
-                              Size: {sizeTally.size} - Measurement Data
-                            </h3>
-                            <TallyTable tallyData={sizeTally} />
-                          </div>
-                        );
-                      })}
-                    </>
-                  )}
+                      return (
+                        <div key={`tally-section-${detail.color}-${size}-${sizeIndex}`} className="mt-8">
+                          <h3 className="text-lg font-bold text-indigo-600 dark:text-indigo-400 mb-4">
+                            Size: {sizeTally.size} - Measurement Data
+                          </h3>
+                          <TallyTable tallyData={sizeTally} />
+                        </div>
+                      );
+                    })}
+                  </>
+                )}
               </div>
             );
           })}
@@ -843,3 +655,4 @@ const ANFStyleViewFullReport = () => {
 };
 
 export default ANFStyleViewFullReport;
+

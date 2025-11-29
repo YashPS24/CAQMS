@@ -246,211 +246,243 @@ export const getanfStyleViewSummary = async (req, res) => {
 // --- NEW Endpoint for the Style View Full Report Page ---
 export const getStyleViewFullReport = async (req, res) => {
   try {
-        const { moNo } = req.params;
-        if (!moNo) {
-          return res.status(400).json({ error: "MO Number is required." });
+    const { moNo } = req.params;
+    if (!moNo) {
+      return res.status(400).json({ error: "MO Number is required." });
+    }
+
+    // --- Part 1: Fetch Order Details from dt_orders ---
+    const orderDetails = await caProdConnection.db
+      .collection("dt_orders")
+      .findOne({ Order_No: moNo });
+
+    if (!orderDetails) {
+      return res
+        .status(404)
+        .json({ error: "Order Details not found for this MO Number." });
+    }
+
+    // --- CLEAN THE ORDER COLORS DATA TO REMOVE _id CONFLICTS ---
+    if (orderDetails && orderDetails.OrderColors) {
+      orderDetails.OrderColors = orderDetails.OrderColors.map((color, colorIndex) => ({
+        Color: color.Color,
+        ColorCode: color.ColorCode,
+        ChnColor: color.ChnColor,
+        ColorKey: color.ColorKey,
+        OrderQty: color.OrderQty.map((sizeObj, sizeIndex) => {
+          // Create a clean object without MongoDB _id
+          const cleanSizeObj = {};
+          Object.keys(sizeObj).forEach(key => {
+            if (key !== '_id') {
+              cleanSizeObj[key] = sizeObj[key];
+            }
+          });
+          return cleanSizeObj;
+        })
+      }));
+    }
+
+    // --- NORMALIZE ORDER COLORS DATA ---
+    if (orderDetails && orderDetails.OrderColors) {
+      orderDetails.OrderColors = orderDetails.OrderColors.map(color => ({
+        ...color,
+        OrderQty: color.OrderQty.map((sizeObj, index) => {
+          const originalKey = Object.keys(sizeObj)[0];
+          const value = Object.values(sizeObj)[0];
+          
+          // Create a new object without the _id to avoid conflicts
+          const newSizeObj = {};
+          newSizeObj[originalKey] = value;
+          
+          return newSizeObj;
+        })
+      }));
+    }
+
+    // --- Part 2: Use MongoDB Aggregation for all processing ---
+    const aggregatedData = await ANFMeasurementReport.aggregate([
+      // Stage 1: Match all reports for the given MO
+      { $match: { moNo: moNo } },
+
+      // Stage 2: Deconstruct the arrays to work with individual documents
+      { $unwind: "$color" },
+      { $unwind: "$measurementDetails" },
+
+      // Stage 3: Group data by QC, Color, and Size to get all summaries
+      {
+        $group: {
+          _id: {
+            qcID: "$qcID",
+            color: "$color",
+            size: "$measurementDetails.size"
+          },
+          // Sum up the size summaries
+          garmentDetailsCheckedQty: {
+            $sum: "$measurementDetails.sizeSummary.garmentDetailsCheckedQty"
+          },
+          garmentDetailsOKGarment: {
+            $sum: "$measurementDetails.sizeSummary.garmentDetailsOKGarment"
+          },
+          garmentDetailsRejected: {
+            $sum: "$measurementDetails.sizeSummary.garmentDetailsRejected"
+          },
+          measurementDetailsPoints: {
+            $sum: "$measurementDetails.sizeSummary.measurementDetailsPoints"
+          },
+          measurementDetailsPass: {
+            $sum: "$measurementDetails.sizeSummary.measurementDetailsPass"
+          },
+          measurementDetailsTotalIssues: {
+            $sum: "$measurementDetails.sizeSummary.measurementDetailsTotalIssues"
+          },
+          measurementDetailsTolPositive: {
+            $sum: "$measurementDetails.sizeSummary.measurementDetailsTolPositive"
+          },
+          measurementDetailsTolNegative: {
+            $sum: "$measurementDetails.sizeSummary.measurementDetailsTolNegative"
+          },
+
+          // Keep the first buyerSpecData we find for tally later
+          buyerSpecData: { $first: "$measurementDetails.buyerSpecData" },
+          // Collect all garment measurements for tally
+          sizeMeasurementData: {
+            $push: "$measurementDetails.sizeMeasurementData"
+          }
         }
-  
-        // --- Part 1: Fetch Order Details from dt_orders (No Change) ---
-        const orderDetails = await caProdConnection.db
-          .collection("dt_orders")
-          .findOne({ Order_No: moNo });
-  
-        if (!orderDetails) {
-          return res
-            .status(404)
-            .json({ error: "Order Details not found for this MO Number." });
-        }
-  
-        // --- Part 2: Use MongoDB Aggregation for all processing ---
-        const aggregatedData = await ANFMeasurementReport.aggregate([
-          // Stage 1: Match all reports for the given MO
-          { $match: { moNo: moNo } },
-  
-          // Stage 2: Deconstruct the arrays to work with individual documents
-          { $unwind: "$color" },
-          { $unwind: "$measurementDetails" },
-  
-          // Stage 3: Group data by QC, Color, and Size to get all summaries
-          {
-            $group: {
-              _id: {
-                qcID: "$qcID",
-                color: "$color",
-                size: "$measurementDetails.size"
+      },
+
+      // Stage 4: Further group to assemble the final structure
+      {
+        $group: {
+          _id: null,
+          // A. Inspector Data: Group by QC ID
+          inspectorData: {
+            $push: {
+              qcID: "$_id.qcID",
+              summary: {
+                garmentDetailsCheckedQty: "$garmentDetailsCheckedQty",
+                garmentDetailsOKGarment: "$garmentDetailsOKGarment",
+                garmentDetailsRejected: "$garmentDetailsRejected",
+                measurementDetailsPoints: "$measurementDetailsPoints",
+                measurementDetailsPass: "$measurementDetailsPass",
+                measurementDetailsTotalIssues: "$measurementDetailsTotalIssues",
+                measurementDetailsTolPositive: "$measurementDetailsTolPositive",
+                measurementDetailsTolNegative: "$measurementDetailsTolNegative"
+              }
+            }
+          },
+          // B. Color Data: Group by Color
+          colorData: {
+            $push: {
+              color: "$_id.color",
+              size: "$_id.size",
+              summary: {
+                garmentDetailsCheckedQty: "$garmentDetailsCheckedQty",
+                garmentDetailsOKGarment: "$garmentDetailsOKGarment",
+                garmentDetailsRejected: "$garmentDetailsRejected",
+                measurementDetailsPoints: "$measurementDetailsPoints",
+                measurementDetailsPass: "$measurementDetailsPass",
+                measurementDetailsTotalIssues: "$measurementDetailsTotalIssues",
+                measurementDetailsTolPositive: "$measurementDetailsTolPositive",
+                measurementDetailsTolNegative: "$measurementDetailsTolNegative"
               },
-              // Sum up the size summaries
-              garmentDetailsCheckedQty: {
-                $sum: "$measurementDetails.sizeSummary.garmentDetailsCheckedQty"
-              },
-              garmentDetailsOKGarment: {
-                $sum: "$measurementDetails.sizeSummary.garmentDetailsOKGarment"
-              },
-              garmentDetailsRejected: {
-                $sum: "$measurementDetails.sizeSummary.garmentDetailsRejected"
-              },
-              measurementDetailsPoints: {
-                $sum: "$measurementDetails.sizeSummary.measurementDetailsPoints"
-              },
-              measurementDetailsPass: {
-                $sum: "$measurementDetails.sizeSummary.measurementDetailsPass"
-              },
-              measurementDetailsTotalIssues: {
-                $sum: "$measurementDetails.sizeSummary.measurementDetailsTotalIssues"
-              },
-              measurementDetailsTolPositive: {
-                $sum: "$measurementDetails.sizeSummary.measurementDetailsTolPositive"
-              },
-              measurementDetailsTolNegative: {
-                $sum: "$measurementDetails.sizeSummary.measurementDetailsTolNegative"
-              },
-  
-              // Keep the first buyerSpecData we find for tally later
-              buyerSpecData: { $first: "$measurementDetails.buyerSpecData" },
-              // Collect all garment measurements for tally
+              buyerSpecData: "$buyerSpecData",
               sizeMeasurementData: {
-                $push: "$measurementDetails.sizeMeasurementData"
-              }
-            }
-          },
-  
-          // Stage 4: Further group to assemble the final structure
-          {
-            $group: {
-              _id: null,
-              // A. Inspector Data: Group by QC ID
-              inspectorData: {
-                $push: {
-                  qcID: "$_id.qcID",
-                  summary: {
-                    garmentDetailsCheckedQty: "$garmentDetailsCheckedQty",
-                    garmentDetailsOKGarment: "$garmentDetailsOKGarment",
-                    garmentDetailsRejected: "$garmentDetailsRejected",
-                    measurementDetailsPoints: "$measurementDetailsPoints",
-                    measurementDetailsPass: "$measurementDetailsPass",
-                    measurementDetailsTotalIssues:
-                      "$measurementDetailsTotalIssues",
-                    measurementDetailsTolPositive:
-                      "$measurementDetailsTolPositive",
-                    measurementDetailsTolNegative:
-                      "$measurementDetailsTolNegative"
-                  }
-                }
-              },
-              // B. Color Data: Group by Color
-              colorData: {
-                $push: {
-                  color: "$_id.color",
-                  size: "$_id.size",
-                  summary: {
-                    garmentDetailsCheckedQty: "$garmentDetailsCheckedQty",
-                    garmentDetailsOKGarment: "$garmentDetailsOKGarment",
-                    garmentDetailsRejected: "$garmentDetailsRejected",
-                    measurementDetailsPoints: "$measurementDetailsPoints",
-                    measurementDetailsPass: "$measurementDetailsPass",
-                    measurementDetailsTotalIssues:
-                      "$measurementDetailsTotalIssues",
-                    measurementDetailsTolPositive:
-                      "$measurementDetailsTolPositive",
-                    measurementDetailsTolNegative:
-                      "$measurementDetailsTolNegative"
-                  },
-                  buyerSpecData: "$buyerSpecData",
-                  sizeMeasurementData: {
-                    $reduce: {
-                      input: "$sizeMeasurementData",
-                      initialValue: [],
-                      in: { $concatArrays: ["$$value", "$$this"] }
-                    }
-                  }
+                $reduce: {
+                  input: "$sizeMeasurementData",
+                  initialValue: [],
+                  in: { $concatArrays: ["$$value", "$$this"] }
                 }
               }
             }
           }
-        ]);
-  
-        if (!aggregatedData || aggregatedData.length === 0) {
-          return res
-            .status(404)
-            .json({ error: "No inspection data found for this MO Number." });
         }
-  
-        // --- Part 3: Final JavaScript processing (much simpler now) ---
-        const result = aggregatedData[0];
-  
-        // A. Process Inspector Data
-        const qcSummaryMap = result.inspectorData.reduce((acc, item) => {
-          if (!acc[item.qcID]) acc[item.qcID] = { qcID: item.qcID };
-          Object.keys(item.summary).forEach((key) => {
-            acc[item.qcID][key] = (acc[item.qcID][key] || 0) + item.summary[key];
-          });
-          return acc;
-        }, {});
-  
-        // B. Process Color Data
-        const colorMap = result.colorData.reduce((acc, item) => {
-          if (!acc[item.color]) {
-            acc[item.color] = {
-              color: item.color,
-              summaryCards: {},
-              summaryBySize: [],
-              tallyBySize: []
-            };
-          }
-          // Sum for summary cards
-          Object.keys(item.summary).forEach((key) => {
-            acc[item.color].summaryCards[key] =
-              (acc[item.color].summaryCards[key] || 0) + item.summary[key];
-          });
-          // Add per-size summary
-          acc[item.color].summaryBySize.push({
-            size: item.size,
-            sizeSummary: item.summary
-          });
-          // Add per-size tally
-          const tally = {};
-          item.sizeMeasurementData.forEach((garment) => {
-            garment.measurements.forEach((m) => {
-              const orderNo = m.orderNo;
-              const fraction = m.fractionValue;
-              if (!tally[orderNo]) tally[orderNo] = {};
-              tally[orderNo][fraction] = (tally[orderNo][fraction] || 0) + 1;
-            });
-          });
-          acc[item.color].tallyBySize.push({
-            size: item.size,
-            buyerSpecData: item.buyerSpecData,
-            measurementsTally: tally
-          });
-          return acc;
-        }, {});
-  
-        // --- Part 4: Assemble Final Payload ---
-        const finalPayload = {
-          orderDetails: {
-            moNo: orderDetails.Order_No,
-            buyer: orderDetails.Buyer,
-            orderQty_style: orderDetails.TotalQty,
-            custStyle: orderDetails.CustStyle,
-            mode: orderDetails.Mode,
-            country: orderDetails.Country,
-            origin: orderDetails.Origin,
-            orderColors: orderDetails.OrderColors
-          },
-          inspectorData: Object.values(qcSummaryMap),
-          summaryByColor: Object.values(colorMap).map((c) => ({
-            color: c.color,
-            ...c.summaryCards
-          })),
-          detailsByColor: Object.values(colorMap)
-        };
-  
-        res.json(finalPayload);
-      } catch (error) {
-        console.error("Error fetching style view full report:", error);
-        res.status(500).json({
-          error: "Failed to fetch full report.",
-          details: error.message
-        });
       }
+    ]);
+
+    if (!aggregatedData || aggregatedData.length === 0) {
+      return res
+        .status(404)
+        .json({ error: "No inspection data found for this MO Number." });
+    }
+
+    // --- Part 3: Final JavaScript processing ---
+    const result = aggregatedData[0];
+
+    // A. Process Inspector Data
+    const qcSummaryMap = result.inspectorData.reduce((acc, item) => {
+      if (!acc[item.qcID]) acc[item.qcID] = { qcID: item.qcID };
+      Object.keys(item.summary).forEach((key) => {
+        acc[item.qcID][key] = (acc[item.qcID][key] || 0) + item.summary[key];
+      });
+      return acc;
+    }, {});
+
+    // B. Process Color Data
+    const colorMap = result.colorData.reduce((acc, item) => {
+      if (!acc[item.color]) {
+        acc[item.color] = {
+          color: item.color,
+          summaryCards: {},
+          summaryBySize: [],
+          tallyBySize: []
+        };
+      }
+      // Sum for summary cards
+      Object.keys(item.summary).forEach((key) => {
+        acc[item.color].summaryCards[key] =
+          (acc[item.color].summaryCards[key] || 0) + item.summary[key];
+      });
+      // Add per-size summary
+      acc[item.color].summaryBySize.push({
+        size: item.size,
+        sizeSummary: item.summary
+      });
+      // Add per-size tally
+      const tally = {};
+      item.sizeMeasurementData.forEach((garment) => {
+        garment.measurements.forEach((m) => {
+          const orderNo = m.orderNo;
+          const fraction = m.fractionValue;
+          if (!tally[orderNo]) tally[orderNo] = {};
+          tally[orderNo][fraction] = (tally[orderNo][fraction] || 0) + 1;
+        });
+      });
+      acc[item.color].tallyBySize.push({
+        size: item.size,
+        buyerSpecData: item.buyerSpecData,
+        measurementsTally: tally
+      });
+      return acc;
+    }, {});
+
+    // --- Part 4: Assemble Final Payload ---
+    const finalPayload = {
+      orderDetails: {
+        moNo: orderDetails.Order_No,
+        buyer: orderDetails.Buyer, // Fixed: Use correct field name
+        orderQty_style: orderDetails.TotalQty,
+        custStyle: orderDetails.CustStyle,
+        mode: orderDetails.Mode,
+        country: orderDetails.Country,
+        origin: orderDetails.Origin,
+        orderColors: orderDetails.OrderColors
+      },
+      inspectorData: Object.values(qcSummaryMap),
+      summaryByColor: Object.values(colorMap).map((c) => ({
+        color: c.color,
+        ...c.summaryCards
+      })),
+      detailsByColor: Object.values(colorMap)
+    };
+
+    res.json(finalPayload);
+  } catch (error) {
+    console.error("Error fetching style view full report:", error);
+    res.status(500).json({
+      error: "Failed to fetch full report.",
+      details: error.message
+    });
+  }
 };
+
