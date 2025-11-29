@@ -8,4 +8,4 @@ else if (typeof process !== 'undefined' && typeof process.env === 'object' && pr
 }
 
 export const API_BASE_URL = determinedApiBaseUrl || "https://192.167.12.85:5001";
-export const PUBLIC_ASSET_URL= "htttps://yqms.yaikh.com";
+export const PUBLIC_ASSET_URL= "htttps://ca-yqms.yaikh.com";

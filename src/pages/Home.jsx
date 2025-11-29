@@ -1,4 +1,6 @@
-import React, { useEffect, useState, useMemo, useRef } from "react";
+import React, { useEffect, useState, useMemo, useRef, useCallback } from "react";
+import axios from "axios";
+import { API_BASE_URL } from "../../config";
 import { useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import {
@@ -17,15 +19,24 @@ import {
   Filter
 } from "lucide-react";
 import useTheme from "../pages/useTheme";
+import { useAuth } from "../components/authentication/AuthContext";
 
 function Home() {
   const { t } = useTranslation();
+  const { user, loading } = useAuth();
   const navigate = useNavigate();
   const { theme, toggleTheme } = useTheme();
   const sectionRefs = useRef({});
   const [searchTerm, setSearchTerm] = useState("");
   const [viewMode, setViewMode] = useState("grid"); // grid or list
   const [activeSection, setActiveSection] = useState(null);
+
+  // Add access control state
+  const [errorMessage, setErrorMessage] = useState("");
+  const [userRoles, setUserRoles] = useState([]);
+  const [roleManagement, setRoleManagement] = useState(null);
+  const [pageLoading, setPageLoading] = useState(true);
+  const [accessMap, setAccessMap] = useState({});
 
   const allSections = useMemo(
     () => [
@@ -39,48 +50,49 @@ function Home() {
         borderColor: "border-teal-200 dark:border-teal-700",
         items: [
           
-          {
-            path: "",
-            roles: ["Cutting"],
-            image: "assets/Home/cutting.webp",
-            title: t("home.cutting"),
-            description: "Cut Panel Inspection",
-            version: '0',
-          },
-          {
-            path: "",
-            roles: ["SCC"],
-            image: "assets/Home/SCCLogo.jpg",
-            title: t("SCC"),
-            description: "Spreading & Cutting",
-             version: '0',
-          },
-          {
-            path: "",
-            roles: ["QC Washing"],
-            image: "assets/Home/qcWashing.png",
-            title: t("home.qcWashing"),
-            description: "Washing Report",
-             version: '0',
-          },{
-            path: "",
-            roles: ["QC Washing"],
-            image: "assets/Home/after_ironing.png",
-            title: t("home.afterIroning"),
-            description: "After Ironing Report",
-             version: '0',
-          },
-           {
-            path: "",
-            roles: ["QC Washing", "QA"],
-            image: "assets/Home/measurement.png",
-            title: t("home.Measurement"),
-            description: "All Style measurements",
-             version: '0',
-          },
+          // {
+          //   path: "",
+          //   roles: ["Cutting"],
+          //   image: "assets/Home/cutting.webp",
+          //   title: t("home.cutting"),
+          //   description: "Cut Panel Inspection",
+          //   version: '0',
+          // },
+          // {
+          //   path: "",
+          //   roles: ["SCC"],
+          //   image: "assets/Home/SCCLogo.jpg",
+          //   title: t("SCC"),
+          //   description: "Spreading & Cutting",
+          //    version: '0',
+          // },
+          // {
+          //   path: "",
+          //   roles: ["QC Washing"],
+          //   image: "assets/Home/qcWashing.png",
+          //   title: t("home.qcWashing"),
+          //   description: "Washing Report",
+          //    version: '0',
+          // },
+          // {
+          //   path: "",
+          //   roles: ["QC Washing"],
+          //   image: "assets/Home/after_ironing.png",
+          //   title: t("home.afterIroning"),
+          //   description: "After Ironing Report",
+          //    version: '0',
+          // },
+          //  {
+          //   path: "",
+          //   roles: ["QC Washing", "QA"],
+          //   image: "assets/Home/measurement.png",
+          //   title: t("home.Measurement"),
+          //   description: "All Style measurements",
+          //    version: '0',
+          // },
           {
             path: "/upload-beforewash-specs",
-            roles: ["Washing Clerk"],
+            roles: ["Washing Clerk","QA Clerk"],
             image: "assets/Home/uploadspecs.png",
             title: t("home.upload_beforewash_specs"),
             description: "Upload Beforewash Specs",
@@ -88,7 +100,7 @@ function Home() {
           },
           {
             path: "/select-dt-specs",
-            roles: ["Washing Clerk", "QA Clerk"],
+            roles: ["Washing Clerk","QA Clerk"],
             image: "assets/Home/select-specs.png",
             title: t("home.select_dt_specs"),
             description: "Select After Wash DT Specs",
@@ -102,223 +114,335 @@ function Home() {
             description: "QC After Wash Measurements",
              version: '0.1',
           },
-          {
-            path: "",
-            roles: ["ANF QA"],
-            image: "assets/Home/anf-washing-ver2.png",
-            title: t("home.anf_washing_version2"),
-            description: "QC AW Measurements - Version 2",
-             version: '0',
-          },
-          {
-            path: "",
-            roles: ["Supplier QC"],
-            image: "assets/Home/supplier-issues.png",
-            title: t("home.supplier-issues"),
-            description: "Supplier Issues Sub-Con Fty",
-             version: '0',
-          }
+          // {
+          //   path: "",
+          //   roles: ["ANF QA"],
+          //   image: "assets/Home/anf-washing-ver2.png",
+          //   title: t("home.anf_washing_version2"),
+          //   description: "QC AW Measurements - Version 2",
+          //    version: '0',
+          // },
+          // {
+          //   path: "",
+          //   roles: ["Supplier QC"],
+          //   image: "assets/Home/supplier-issues.png",
+          //   title: t("home.supplier-issues"),
+          //   description: "Supplier Issues Sub-Con Fty",
+          //    version: '0',
+          // }
         ]
       },
-      {
-        id: "sewing-qc",
-        title: "Sewing QC Inspection",
-        icon: <CheckSquare className="w-5 h-5 mr-2" />,
-         bgColor: "bg-gradient-to-br from-purple-50 to-violet-100 dark:from-purple-900/20 dark:to-violet-800/20",
-         borderColor: "border-purple-200 dark:border-purple-700",
-        items: [
-          {
-            path: "",
-            roles: ["QC Roving"],
-            image: "assets/Home/qcinline.png",
-            title: "QC Inline Roving",
-            description: "QC Inline Roving Point",
-             version: '0',
-          },
-          {
-            path: "",
-            roles: ["QC1 Inspection"],
-            image: "assets/Home/qcc.png",
-            title: t("home.qc1_inspection"),
-            description: "QC1 Inspection Point",
-             version: '0',
-          },
-          {
-            path: "",
-            roles: ["QC1 Sub Con"],
-            image: "assets/Home/sub-con-qc1.png",
-            title: t("home.qc1_subcon_inspection"),
-            description: "QC1 Sub Con Inspection",
-             version: '0',
-          },
-          {
-            path: "",
-            roles: ["Printing"],
-            image: "assets/Home/qc2.png",
-            title: "Print QR",
-            description: "Sewing Worker QR Code",
-             version: '0',
-          }
-        ]
-      },
+      // {
+      //   id: "sewing-qc",
+      //   title: "Sewing QC Inspection",
+      //   icon: <CheckSquare className="w-5 h-5 mr-2" />,
+      //    bgColor: "bg-gradient-to-br from-purple-50 to-violet-100 dark:from-purple-900/20 dark:to-violet-800/20",
+      //    borderColor: "border-purple-200 dark:border-purple-700",
+      //   items: [
+      //     {
+      //       path: "",
+      //       roles: ["QC Roving"],
+      //       image: "assets/Home/qcinline.png",
+      //       title: "QC Inline Roving",
+      //       description: "QC Inline Roving Point",
+      //        version: '0',
+      //     },
+      //     {
+      //       path: "",
+      //       roles: ["QC1 Inspection"],
+      //       image: "assets/Home/qcc.png",
+      //       title: t("home.qc1_inspection"),
+      //       description: "QC1 Inspection Point",
+      //        version: '0',
+      //     },
+      //     {
+      //       path: "",
+      //       roles: ["QC1 Sub Con"],
+      //       image: "assets/Home/sub-con-qc1.png",
+      //       title: t("home.qc1_subcon_inspection"),
+      //       description: "QC1 Sub Con Inspection",
+      //        version: '0',
+      //     },
+      //     {
+      //       path: "",
+      //       roles: ["Printing"],
+      //       image: "assets/Home/qc2.png",
+      //       title: "Print QR",
+      //       description: "Sewing Worker QR Code",
+      //        version: '0',
+      //     }
+      //   ]
+      // },
       
-      {
-        id: "qa-inspection",
-        title: "QA Inspection",
-        icon: <Shield className="w-5 h-5 mr-2" />,
-        bgColor: "bg-gradient-to-br from-orange-50 to-amber-100 dark:from-orange-900/20 dark:to-amber-800/20",
-        borderColor: "border-orange-200 dark:border-orange-700",
-        items: [
+      // {
+      //   id: "qa-inspection",
+      //   title: "QA Inspection",
+      //   icon: <Shield className="w-5 h-5 mr-2" />,
+      //   bgColor: "bg-gradient-to-br from-orange-50 to-amber-100 dark:from-orange-900/20 dark:to-amber-800/20",
+      //   borderColor: "border-orange-200 dark:border-orange-700",
+      //   items: [
          
-          {
-            path: "",
-            roles: ["Washing Clerk"],
-            image: "assets/Home/qc2-workers-upload.png",
-            title: t("home.qc2_upload_data"),
-            description: "QC2 Upload Data",
-             version: '0',
-          },
-          {
-            path: "",
-            roles: ["Washing Clerk"],
-            image: "assets/Home/qc2WashingUpload.png",
-            title: t("home.qc2_washing_data"),
-            description: "QC2 Washing Data",
-             version: '0',
-          },
-          {
-            path: "",
-            roles: ["QA"],
-            image: "assets/Home/qc-accuracy.png",
-            title: "QA Random Inspection",
-            description: "QA Random Checks",
-             version: '0',
-          },
-          {
-            path: "",
-            roles: ["QA"],
-            image: "assets/Home/qcOutput.png",
-            title: "QC Output",
-            description: "QC Output | Sunrise & Old Barcode System",
-             version: '0',
-          },
+      //     {
+      //       path: "",
+      //       roles: ["Washing Clerk"],
+      //       image: "assets/Home/qc2-workers-upload.png",
+      //       title: t("home.qc2_upload_data"),
+      //       description: "QC2 Upload Data",
+      //        version: '0',
+      //     },
+      //     {
+      //       path: "",
+      //       roles: ["Washing Clerk"],
+      //       image: "assets/Home/qc2WashingUpload.png",
+      //       title: t("home.qc2_washing_data"),
+      //       description: "QC2 Washing Data",
+      //        version: '0',
+      //     },
+      //     {
+      //       path: "",
+      //       roles: ["QA"],
+      //       image: "assets/Home/qc-accuracy.png",
+      //       title: "QA Random Inspection",
+      //       description: "QA Random Checks",
+      //        version: '0',
+      //     },
+      //     {
+      //       path: "",
+      //       roles: ["QA"],
+      //       image: "assets/Home/qcOutput.png",
+      //       title: "QC Output",
+      //       description: "QC Output | Sunrise & Old Barcode System",
+      //        version: '0',
+      //     },
           
-          {
-            path: "",
-            roles: ["QA Clerk"],
-            image: "assets/Home/PackingList.png",
-            title: "Upload Packing List",
-            description: "Packing List from Shipping Dept",
-             version: '0',
-          },
-          {
-            path: "",
-            roles: ["QA"],
-            image: "assets/Home/qafinal.png",
-            title: "Final Inspection",
-            description: "QA Final Inspection",
-             version: '0',
-          }
-        ]
-      },
+      //     {
+      //       path: "",
+      //       roles: ["QA Clerk"],
+      //       image: "assets/Home/PackingList.png",
+      //       title: "Upload Packing List",
+      //       description: "Packing List from Shipping Dept",
+      //        version: '0',
+      //     },
+      //     {
+      //       path: "",
+      //       roles: ["QA"],
+      //       image: "assets/Home/qafinal.png",
+      //       title: "Final Inspection",
+      //       description: "QA Final Inspection",
+      //        version: '0',
+      //     }
+      //   ]
+      // },
       
-      {
-        id: "admin-panel",
-        title: "Admin Panel",
-        icon: <Settings className="w-5 h-5 mr-2" />,
-        bgColor: "bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-blue-900/20 dark:to-indigo-800/20",
-        borderColor: "border-blue-200 dark:border-blue-700",
-        items: [
-          {
-            path: "",
-            roles: ["IE", "System Administration"],
-            image: "assets/Home/ie.png",
-            title: t("home.ieadmin"),
-            description: "IE System Admin",
-             version: '0',
-          },
-          {
-            path: "",
-            roles: ["System Administration"],
-            image: "assets/Home/sysadmin.jpg",
-            title: t("home.systemadmin"),
-            description: "Modify Defects",
-             version: '0',
-          },
-          {
-            path: "",
-            roles: ["YQMS"],
-            image: "assets/Home/yqms.png",
-            title: t("home.yqms"),
-            description: "Project Management",
-             version: '0',
-          }
-        ]
-      },
-      {
-        id: "analytics",
-        title: "Analytics",
-        icon: <BarChart3 className="w-5 h-5 mr-2" />,
-        bgColor: "bg-gradient-to-br from-rose-50 to-pink-100 dark:from-rose-900/20 dark:to-pink-800/20",
-        borderColor: "border-rose-200 dark:border-rose-700",
-        items: [
-          {
-            path: "",
-            roles: ["Download Data"],
-            image: "assets/Home/download.jpg",
-            title: t("home.download_data"),
-            description: "Download Raw Data",
-             version: '0',
-          },
-          {
-            path: "",
-            roles: ["Live Dashboard"],
-            image: "assets/Home/dash.png",
-            title: t("home.live_dashboard"),
-            description: "QC2 Live Dashboard",
-             version: '0',
-          },
-          {
-            path: "",
-            roles: ["Power BI"],
-            image: "assets/Home/powerbi.png",
-            title: "Power BI",
-            description: "View Power BI Reports",
-             version: '0',
-          },
-          {
-            path: "",
-            roles: ["QA Pivot"],
-            image: "assets/Home/qalogo.png",
-            title: "QA Evaluation",
-            description: "Upload & View Data",
-             version: '0',
-          },
-          {
-            path: "",
-            roles: ["QC1 Sunrise"],
-            image: "assets/Home/sunrise.png",
-            title: "QC1 Sunrise",
-            description: "Upload Excel Data",
-             version: '0',
-          }
-        ]
-      },
+      // {
+      //   id: "admin-panel",
+      //   title: "Admin Panel",
+      //   icon: <Settings className="w-5 h-5 mr-2" />,
+      //   bgColor: "bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-blue-900/20 dark:to-indigo-800/20",
+      //   borderColor: "border-blue-200 dark:border-blue-700",
+      //   items: [
+      //     {
+      //       path: "",
+      //       roles: ["IE", "System Administration"],
+      //       image: "assets/Home/ie.png",
+      //       title: t("home.ieadmin"),
+      //       description: "IE System Admin",
+      //        version: '0',
+      //     },
+      //     {
+      //       path: "",
+      //       roles: ["System Administration"],
+      //       image: "assets/Home/sysadmin.jpg",
+      //       title: t("home.systemadmin"),
+      //       description: "Modify Defects",
+      //        version: '0',
+      //     },
+      //     {
+      //       path: "",
+      //       roles: ["YQMS"],
+      //       image: "assets/Home/yqms.png",
+      //       title: t("home.yqms"),
+      //       description: "Project Management",
+      //        version: '0',
+      //     }
+      //   ]
+      // },
+      // {
+      //   id: "analytics",
+      //   title: "Analytics",
+      //   icon: <BarChart3 className="w-5 h-5 mr-2" />,
+      //   bgColor: "bg-gradient-to-br from-rose-50 to-pink-100 dark:from-rose-900/20 dark:to-pink-800/20",
+      //   borderColor: "border-rose-200 dark:border-rose-700",
+      //   items: [
+      //     {
+      //       path: "",
+      //       roles: ["Download Data"],
+      //       image: "assets/Home/download.jpg",
+      //       title: t("home.download_data"),
+      //       description: "Download Raw Data",
+      //        version: '0',
+      //     },
+      //     {
+      //       path: "",
+      //       roles: ["Live Dashboard"],
+      //       image: "assets/Home/dash.png",
+      //       title: t("home.live_dashboard"),
+      //       description: "QC2 Live Dashboard",
+      //        version: '0',
+      //     },
+      //     {
+      //       path: "",
+      //       roles: ["Power BI"],
+      //       image: "assets/Home/powerbi.png",
+      //       title: "Power BI",
+      //       description: "View Power BI Reports",
+      //        version: '0',
+      //     },
+      //     {
+      //       path: "",
+      //       roles: ["QA Pivot"],
+      //       image: "assets/Home/qalogo.png",
+      //       title: "QA Evaluation",
+      //       description: "Upload & View Data",
+      //        version: '0',
+      //     },
+      //     {
+      //       path: "",
+      //       roles: ["QC1 Sunrise"],
+      //       image: "assets/Home/sunrise.png",
+      //       title: "QC1 Sunrise",
+      //       description: "Upload Excel Data",
+      //        version: '0',
+      //     }
+      //   ]
+      // },
     ],
     [t]
   );
-// Filter sections and items based on search
+// STEP 1: Initial check for user authentication
+  useEffect(() => {
+    if (!loading && !user) {
+      navigate("/login");
+    }
+  }, [user, loading, navigate]);
+
+  // STEP 2: Fetch legacy and user-specific roles once user is available
+  useEffect(() => {
+    if (user) {
+      const fetchBaseRoles = async () => {
+        setPageLoading(true);
+        setErrorMessage(""); // Clear previous errors
+        try {
+          const [roleManagementRes, userRolesRes] = await Promise.all([
+            axios.get(`${API_BASE_URL}/api/role-management`),
+            axios.get(`${API_BASE_URL}/api/user-roles/${user.emp_id}`)
+          ]);
+
+          setRoleManagement(roleManagementRes.data);
+          setUserRoles(userRolesRes.data.roles);
+        } catch (error) {
+          console.error("Error fetching base roles:", error);
+          setErrorMessage("Error loading base page permissions.");
+          setPageLoading(false); // Stop loading on error
+        }
+        // Do not set pageLoading to false here, let the next step do it
+      };
+
+      fetchBaseRoles();
+    }
+  }, [user]);
+
+  // STEP 3: Fetch IE-specific access rights only AFTER legacy roles are loaded
+  useEffect(() => {
+    // This effect runs only when `roleManagement` is successfully populated
+    if (roleManagement) {
+      const checkAllIEAccess = async () => {
+        try {
+          const pageIdsToCheck = [
+            ...new Set(
+              allSections
+                .flatMap((s) => s.items)
+                .filter((item) => item.pageId)
+                .map((item) => item.pageId)
+            )
+          ];
+
+          if (pageIdsToCheck.length > 0) {
+            const accessPromises = pageIdsToCheck.map((pageId) =>
+              axios.get(
+                `${API_BASE_URL}/api/ie/role-management/access-check?emp_id=${user.emp_id}&page=${pageId}`
+              )
+            );
+
+            const results = await Promise.all(accessPromises);
+            const newAccessMap = {};
+            results.forEach((res, index) => {
+              newAccessMap[pageIdsToCheck[index]] = res.data.hasAccess;
+            });
+
+            setAccessMap(newAccessMap);
+          }
+        } catch (error) {
+          console.error("Error fetching IE access rights:", error);
+          setErrorMessage("Error loading IE page permissions.");
+        } finally {
+          // This is the final step, now we can stop the main loading indicator
+          setPageLoading(false);
+        }
+      };
+
+      checkAllIEAccess();
+    }
+  }, [roleManagement, user, allSections]); // Dependency on roleManagement is key
+
+  // Hybrid access function
+  const hasAccess = useCallback(
+    (item) => {
+      if (!user) return false;
+
+      const isSuperAdmin = userRoles.includes("Super Admin");
+      const isAdmin = userRoles.includes("Admin");
+      if (isSuperAdmin || isAdmin) return true;
+
+      if (item.pageId) return accessMap[item.pageId] === true;
+
+      if (item.roles && roleManagement && user.job_title) {
+        return roleManagement.some(
+          (role) =>
+            item.roles.includes(role.role) &&
+            role.jobTitles.includes(user.job_title)
+        );
+      }
+
+      return false;
+    },
+    [user, userRoles, roleManagement, accessMap]
+  );
+
+  // Dynamic filtering logic with access control
+  const accessibleSections = useMemo(() => {
+    if (pageLoading || !userRoles) return [];
+
+    return allSections
+      .map((section) => ({
+        ...section,
+        items: section.items.filter((item) => hasAccess(item))
+      }))
+      .filter((section) => section.items.length > 0);
+  }, [allSections, hasAccess, pageLoading, userRoles]);
+
+  // Filter sections and items based on search
   const filteredSections = useMemo(() => {
-    if (!searchTerm) return allSections;
+    if (!searchTerm) return accessibleSections;
     
-    return allSections.map(section => ({
+    return accessibleSections.map(section => ({
       ...section,
       items: section.items.filter(item =>
         item.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
         item.description.toLowerCase().includes(searchTerm.toLowerCase())
       )
     })).filter(section => section.items.length > 0);
-  }, [allSections, searchTerm]);
+  }, [accessibleSections, searchTerm]);
 
   const handleNavigation = (item) => {
     if (item.version === '0') {
@@ -326,7 +450,13 @@ function Home() {
       alert('This feature is coming soon!');
       return;
     }
-    navigate(item.path);
+    
+    if (hasAccess(item)) {
+      navigate(item.path);
+    } else {
+      setErrorMessage("Unauthorized Access");
+      setTimeout(() => setErrorMessage(""), 3000);
+    }
   };
 
   const handleTabClick = (sectionId) => {
@@ -366,6 +496,17 @@ function Home() {
     return `${baseStyle} border-gray-200 dark:border-gray-700`;
   };
 
+  // Show loading while checking access
+  if (loading || pageLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-800">
+        <div className="text-xl text-gray-600 dark:text-gray-300">
+          Loading...
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-800 text-slate-800 dark:text-slate-200">
       {/* Navigation Tabs */}
@@ -393,6 +534,13 @@ function Home() {
       {/* Main Content */}
       <main className="pt-20 pb-8">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          {/* Error Message */}
+          {errorMessage && (
+            <div className="bg-red-500 text-white text-center py-2 mb-6 rounded-md">
+              {errorMessage}
+            </div>
+          )}
+
           {/* Sections */}
           <div className="space-y-6">
             {filteredSections.length > 0 ? (
@@ -421,7 +569,7 @@ function Home() {
                   >
                     {section.items.map((item, itemIndex) => (
                       <div
-                        key={itemIndex}
+                        key={`${section.id}-${itemIndex}`} // Fixed: Use unique key
                         onClick={() => handleNavigation(item)}
                         className={getItemStyle(item.version)}
                       >

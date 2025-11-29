@@ -148,102 +148,102 @@ export default function Navbar({ onLogout }) {
           }
         ]
       },
-      {
-        id: "sewing-qc",
-        title: "Sewing",
-        icon: <CheckSquare size={18} />,
-        color: "purple",
-        items: [
-          { 
-            path: "/roving", 
-            roles: ["QC Roving"], 
-            title: "QC Inline Roving",
-            description: "Inline quality roving"
-          },
-          {
-            path: "/details",
-            roles: ["QC1 Inspection"],
-            title: t("home.qc1_inspection"),
-            description: "QC1 inspection process"
-          },
-          { 
-            path: "/inline-emp", 
-            roles: ["Printing"], 
-            title: "Print QR",
-            description: "Print QR codes"
-          }
-        ]
-      },
-      {
-        id: "qa-inspection",
-        title: "QA",
-        icon: <Shield size={18} />,
-        color: "red",
-        items: [
-          { 
-            path: "/audit", 
-            roles: ["QA Audit"], 
-            title: "Audit",
-            description: "Quality audits"
-          },
-          {
-            path: "/qc-accuracy",
-            roles: ["QA"],
-            title: "QC Accuracy",
-            description: "QC accuracy tracking"
-          },
-          {
-            path: "/qa-yorksys",
-            roles: ["QA Clerk"],
-            title: "Upload Orders",
-            description: "Upload order data"
-          },
-          {
-            path: "/final-inspection",
-            roles: ["QA"],
-            title: "Final Inspection",
-            description: "Final quality inspection"
-          }
-        ]
-      },
-      {
-        id: "analytics",
-        title: "Analytics",
-        icon: <BarChart3 size={18} />,
-        color: "orange",
-        items: [
-          {
-            path: "/download-data",
-            roles: ["Download Data"],
-            title: t("home.download_data"),
-            description: "Download reports"
-          },
-          {
-            path: "/live-dashboard",
-            roles: ["Live Dashboard"],
-            title: t("home.live_dashboard"),
-            description: "Real-time dashboard"
-          },
-          { 
-            path: "/powerbi", 
-            roles: ["Power BI"], 
-            title: "Power BI",
-            description: "Business intelligence"
-          },
-          { 
-            path: "/qa-pivot", 
-            roles: ["QA Pivot"], 
-            title: "QA Evaluation",
-            description: "QA performance analysis"
-          },
-          { 
-            path: "/qc1-sunrise", 
-            roles: ["QC1 Sunrise"], 
-            title: "QC1 Sunrise",
-            description: "QC1 sunrise reports"
-          }
-        ]
-      },
+      // {
+      //   id: "sewing-qc",
+      //   title: "Sewing",
+      //   icon: <CheckSquare size={18} />,
+      //   color: "purple",
+      //   items: [
+      //     { 
+      //       path: "/roving", 
+      //       roles: ["QC Roving"], 
+      //       title: "QC Inline Roving",
+      //       description: "Inline quality roving"
+      //     },
+      //     {
+      //       path: "/details",
+      //       roles: ["QC1 Inspection"],
+      //       title: t("home.qc1_inspection"),
+      //       description: "QC1 inspection process"
+      //     },
+      //     { 
+      //       path: "/inline-emp", 
+      //       roles: ["Printing"], 
+      //       title: "Print QR",
+      //       description: "Print QR codes"
+      //     }
+      //   ]
+      // },
+      // {
+      //   id: "qa-inspection",
+      //   title: "QA",
+      //   icon: <Shield size={18} />,
+      //   color: "red",
+      //   items: [
+      //     { 
+      //       path: "/audit", 
+      //       roles: ["QA Audit"], 
+      //       title: "Audit",
+      //       description: "Quality audits"
+      //     },
+      //     {
+      //       path: "/qc-accuracy",
+      //       roles: ["QA"],
+      //       title: "QC Accuracy",
+      //       description: "QC accuracy tracking"
+      //     },
+      //     {
+      //       path: "/qa-yorksys",
+      //       roles: ["QA Clerk"],
+      //       title: "Upload Orders",
+      //       description: "Upload order data"
+      //     },
+      //     {
+      //       path: "/final-inspection",
+      //       roles: ["QA"],
+      //       title: "Final Inspection",
+      //       description: "Final quality inspection"
+      //     }
+      //   ]
+      // },
+      // {
+      //   id: "analytics",
+      //   title: "Analytics",
+      //   icon: <BarChart3 size={18} />,
+      //   color: "orange",
+      //   items: [
+      //     {
+      //       path: "/download-data",
+      //       roles: ["Download Data"],
+      //       title: t("home.download_data"),
+      //       description: "Download reports"
+      //     },
+      //     {
+      //       path: "/live-dashboard",
+      //       roles: ["Live Dashboard"],
+      //       title: t("home.live_dashboard"),
+      //       description: "Real-time dashboard"
+      //     },
+      //     { 
+      //       path: "/powerbi", 
+      //       roles: ["Power BI"], 
+      //       title: "Power BI",
+      //       description: "Business intelligence"
+      //     },
+      //     { 
+      //       path: "/qa-pivot", 
+      //       roles: ["QA Pivot"], 
+      //       title: "QA Evaluation",
+      //       description: "QA performance analysis"
+      //     },
+      //     { 
+      //       path: "/qc1-sunrise", 
+      //       roles: ["QC1 Sunrise"], 
+      //       title: "QC1 Sunrise",
+      //       description: "QC1 sunrise reports"
+      //     }
+      //   ]
+      // },
       {
         id: "admin-panel",
         title: "Admin",
