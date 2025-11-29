@@ -460,7 +460,7 @@ export const getStyleViewFullReport = async (req, res) => {
     const finalPayload = {
       orderDetails: {
         moNo: orderDetails.Order_No,
-        buyer: orderDetails.Buyer, // Fixed: Use correct field name
+        buyer: orderDetails.ShortName, // Fixed: Use correct field name
         orderQty_style: orderDetails.TotalQty,
         custStyle: orderDetails.CustStyle,
         mode: orderDetails.Mode,

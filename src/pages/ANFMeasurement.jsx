@@ -116,13 +116,13 @@ const ANFMeasurement = () => {
           </Suspense>
         )
       },
-      {
-        id: "dashboard",
-        labelKey: "anfMeasurement.tabs.dashboard",
-        label: "Dashboard",
-        icon: <LayoutDashboard size={18} />,
-        component: <PlaceholderComponent title="Dashboard" />
-      }
+      // {
+      //   id: "dashboard",
+      //   labelKey: "anfMeasurement.tabs.dashboard",
+      //   label: "Dashboard",
+      //   icon: <LayoutDashboard size={18} />,
+      //   component: <PlaceholderComponent title="Dashboard" />
+      // }
     ],
     [inspectionState]
   );
