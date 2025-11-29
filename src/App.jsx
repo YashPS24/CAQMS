@@ -24,6 +24,10 @@ import UserList from "./components/users/userList";
 import Profile from "./pages/Auth/Profile";
 import UploadWashingSpecs from "./pages/UploadWashingSpecs.jsx";
 import ManageBuyerSpecs from "./pages/ManageBuyerSpecs.jsx";
+import ANFMeasurement from "./pages/ANFMeasurement.jsx";
+import ANFMeasurementQCViewFullReport from "./components/inspection/ANF_measurement/ANFMeasurementQCViewFullReport.jsx";
+import ANFStyleViewFullReport from "./components/inspection/ANF_measurement/ANFStyleViewFullReport";
+import ANFBuyerStyleViewFullReport from "./components/inspection/ANF_measurement/ANFBuyerStyleViewFullReport.jsx";
 
 function AppContent() {
   const [isAuthenticated, setIsAuthenticated] = useState(() => {
@@ -316,6 +320,21 @@ function AppContent() {
                 element={<UploadWashingSpecs />}
               />
               <Route path="/select-dt-specs" element={<ManageBuyerSpecs />} />
+              <Route path="/anf-washing" element={<ANFMeasurement />} />
+              <Route
+                path="/anf-washing/qc-full-report/:pageId"
+                element={<ANFMeasurementQCViewFullReport />}
+              />
+
+              <Route
+                path="/anf-washing/style-full-report/:moNo"
+                element={<ANFStyleViewFullReport />}
+              />
+
+              <Route
+                path="/anf-washing/buyer-style-full-report/:moNo"
+                element={<ANFBuyerStyleViewFullReport />}
+              />
             </>
           ) : (
             <Route path="*" element={<Navigate to="/" replace />} />

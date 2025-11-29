@@ -6,6 +6,11 @@ import createRoleManagmentModel from "../../models/Role/RoleManagment.js";
 import createDTOrdersSchema from "../../models/DT_Orders/dt_orders.js";
 import createBuyerSpecTemplateModel from "../../models/BuyerSpecTemp/BuyerSpecTemplate.js";
 import createBuyerSpecTemplateM2Model from "../../models/BuyerSpecTemp/BuyerSpecTemplateM2.js";
+import createANFMeasurementReportModel from "../../models/ANFMeasurement/ANFMeasurementReport.js";
+import createANFMeasurementReportPackingModel from "../../models/ANFMeasurement/ANFMeasurementReportPacking.js";
+import createSizeCompletionStatusModel from "../../models/ANFMeasurement/SizeCompletionStatus.js";
+import createSizeCompletionStatusPackingModel from "../../models/ANFMeasurement/ANFMeasurementReportPacking.js";
+
 
 // MongoDB Connections
 export const caProdConnection = mongoose.createConnection(
@@ -36,13 +41,20 @@ export const DtOrder = createDTOrdersSchema(caProdConnection);
 export const BuyerSpecTemplate = createBuyerSpecTemplateModel(caProdConnection);
 export const BuyerSpecTemplateM2 =
   createBuyerSpecTemplateM2Model(caProdConnection);
+  export const ANFMeasurementReport =
+  createANFMeasurementReportModel(caProdConnection);
+export const ANFMeasurementReportPacking =
+  createANFMeasurementReportPackingModel(caProdConnection);
+  export const SizeCompletionStatus =
+  createSizeCompletionStatusModel(caProdConnection);
+  export const SizeCompletionStatusPacking =
+  createSizeCompletionStatusPackingModel(caProdConnection);
+
 // Disconnect DB connection
 export async function disconnectMongoDB() {
     try {
         await caProdConnection.close();
-        await caEcoConnectio
-        
-        n.close();
+        await caEcoConnection.close();
         console.log('MongoDB connections closed.');
     } catch (error) {
         console.error('Error disconnecting MongoDB:', error);

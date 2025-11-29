@@ -21,6 +21,15 @@ import dtOrders from "./routes/Common/DTOrdersRoutes.js";
 import buyerSpec from "./routes/Common/DTOrdersBuyerSpecRoutes.js";
 import buyerSpecPacking from "./routes/Common/DTOrdersBuyerSpecPackingRoutes.js";
 
+/* -----------------------------
+ANF Imports
+------------------------------ */
+import ANF from "./routes/ANF/ANFReportRoutes.js";
+import ANFInspection from "./routes/ANF/ANFInspectionRoutes.js";
+import ANFResult from "./routes/ANF/ANFResultRoutes.js";
+import ANFInspectionPacking from "./routes/ANF/ANFInspectionPackingRoutes.js";
+import ANFReportPacking from "./routes/ANF/ANFReportPackingRoutes.js";
+import ANFResultPacking from "./routes/ANF/ANFResultPackingRoutes.js";
 
 
 // import { closeSQLPools } from "./controller/SQL/sqlController.js";
@@ -46,6 +55,16 @@ app.use(dtOrders);
 /* -----------Buyer Specs -----------------*/
 app.use(buyerSpec);
 app.use(buyerSpecPacking);
+
+/* -----------------------------
+ANF Routes
+------------------------------ */
+app.use(ANF);
+app.use(ANFInspection); 
+app.use(ANFResult);
+app.use(ANFInspectionPacking);
+app.use(ANFReportPacking);
+app.use(ANFResultPacking);
 
 // process.on("SIGINT", async () => {
 //   try {

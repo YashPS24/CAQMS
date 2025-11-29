@@ -95,12 +95,12 @@ function Home() {
              version: '0.1',
           },
           {
-            path: "",
+            path: "/anf-washing",
             roles: ["ANF QA"],
             image: "assets/Home/anf-washing.png",
             title: t("home.anf_washing"),
             description: "QC After Wash Measurements",
-             version: '0',
+             version: '0.1',
           },
           {
             path: "",
