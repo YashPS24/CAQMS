@@ -4,7 +4,8 @@ import mongoose from "mongoose";
 import createUserModel from "../../models/User/User.js";
 import createRoleManagmentModel from "../../models/Role/RoleManagment.js";
 import createDTOrdersSchema from "../../models/DT_Orders/dt_orders.js";
-
+import createBuyerSpecTemplateModel from "../../models/BuyerSpecTemp/BuyerSpecTemplate.js";
+import createBuyerSpecTemplateM2Model from "../../models/BuyerSpecTemp/BuyerSpecTemplateM2.js";
 
 // MongoDB Connections
 export const caProdConnection = mongoose.createConnection(
@@ -32,7 +33,9 @@ caEcoConnection.on("error", (err) => console.error("❌ unexpected error:", err)
 export const UserMain = createUserModel(caEcoConnection);
 export const RoleManagment = createRoleManagmentModel(caProdConnection);
 export const DtOrder = createDTOrdersSchema(caProdConnection);
-
+export const BuyerSpecTemplate = createBuyerSpecTemplateModel(caProdConnection);
+export const BuyerSpecTemplateM2 =
+  createBuyerSpecTemplateM2Model(caProdConnection);
 // Disconnect DB connection
 export async function disconnectMongoDB() {
     try {

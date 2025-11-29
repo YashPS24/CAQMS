@@ -17,6 +17,9 @@ Common File Imports
 ------------------------------ */
 /*-------------DT-Orders Imports --------------*/
 import dtOrders from "./routes/Common/DTOrdersRoutes.js";
+/*-------------Buyer Spec Imports --------------*/
+import buyerSpec from "./routes/Common/DTOrdersBuyerSpecRoutes.js";
+import buyerSpecPacking from "./routes/Common/DTOrdersBuyerSpecPackingRoutes.js";
 
 
 
@@ -40,6 +43,9 @@ Commin file  Routes
 ------------------------------ */
 /* ----------- DT_Orders -----------------*/
 app.use(dtOrders);
+/* -----------Buyer Specs -----------------*/
+app.use(buyerSpec);
+app.use(buyerSpecPacking);
 
 // process.on("SIGINT", async () => {
 //   try {

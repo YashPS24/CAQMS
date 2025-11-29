@@ -23,6 +23,7 @@ import { ThemeProvider } from "./components/context/ThemeContext";
 import UserList from "./components/users/userList";
 import Profile from "./pages/Auth/Profile";
 import UploadWashingSpecs from "./pages/UploadWashingSpecs.jsx";
+import ManageBuyerSpecs from "./pages/ManageBuyerSpecs.jsx";
 
 function AppContent() {
   const [isAuthenticated, setIsAuthenticated] = useState(() => {
@@ -207,7 +208,7 @@ function AppContent() {
   return (
     <div className="min-h-screen bg-gray-50">
       {isAuthenticated && <Navbar onLogout={handleLogout} />}
-      <div className={isAuthenticated ? "pt-16" : ""}>
+      <div className={isAuthenticated ? "pt-0" : ""}>
         <Routes>
           {/* Public Routes */}
           <Route path="/register" element={<Register />} />
@@ -314,6 +315,7 @@ function AppContent() {
                 path="/upload-beforewash-specs"
                 element={<UploadWashingSpecs />}
               />
+              <Route path="/select-dt-specs" element={<ManageBuyerSpecs />} />
             </>
           ) : (
             <Route path="*" element={<Navigate to="/" replace />} />

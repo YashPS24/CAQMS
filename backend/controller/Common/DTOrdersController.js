@@ -96,8 +96,7 @@ export const saveWashingSpecs = async (req, res) => {
   console.log('Save request received:', {
     moNo,
     selectedColors,
-    dataLength: washingSpecsData?.length,
-    firstRowSample: washingSpecsData?.[0]?.rows?.[0]
+    dataLength: washingSpecsData?.length
   });
 
   if (!moNo || !washingSpecsData || washingSpecsData.length === 0) {
@@ -111,15 +110,14 @@ export const saveWashingSpecs = async (req, res) => {
   try {
     const collection = caProdConnection.db.collection("dt_orders");
     const orderDocument = await collection.findOne({ Order_No: moNo });
-
+    
     if (!orderDocument) {
       return res.status(404).json({
         message: `Order with MO No '${moNo}' not found in dt_orders.`
       });
     }
 
-    // Process the washing specs data
-    const specData = washingSpecsData[0]; // Single sheet format
+    const specData = washingSpecsData[0];
     
     console.log('Processing spec data:', {
       rowsCount: specData.rows?.length,
@@ -131,38 +129,102 @@ export const saveWashingSpecs = async (req, res) => {
     const existingBeforeWashSpecs = orderDocument.beforeWashSpecs || [];
     const existingAfterWashSpecs = orderDocument.afterWashSpecs || [];
     
-    // Create new specs for ALL selected colors
-    const newBeforeWashSpecs = [];
-    const newAfterWashSpecs = [];
+    // Find existing 'ALL' after wash spec to get previously applied colors
+    const existingAfterWashAllSpec = existingAfterWashSpecs.find(spec => spec.colorCode === 'ALL');
+    const previouslyAppliedColors = existingAfterWashAllSpec ? (existingAfterWashAllSpec.appliedColors || []) : [];
     
+    console.log('Previously applied colors:', previouslyAppliedColors);
+    console.log('Currently selected colors:', selectedColors);
+    
+    // Merge previous and current colors (remove duplicates)
+    const allAppliedColors = [...new Set([...previouslyAppliedColors, ...selectedColors])];
+    
+    console.log('All applied colors (merged):', allAppliedColors);
+
+    // Create new specs
+    const newBeforeWashSpecs = [];
+    let newAfterWashSpec = null;
+    
+    // Process After Wash Specs ONCE (same for all colors)
+    const afterWashColorSpecs = [];
+    
+    specData.rows.forEach((row, rowIndex) => {
+      const afterWashSizeSpecs = {};
+      let hasAfterWashData = false;
+      
+      // Process each size for after wash
+      specData.sizeColumns.forEach(size => {
+        const sizeSpec = row.specs[size];
+        
+        if (sizeSpec && sizeSpec.afterWash && 
+            sizeSpec.afterWash.raw !== null && 
+            sizeSpec.afterWash.raw !== undefined &&
+            sizeSpec.afterWash.raw !== '') {
+          afterWashSizeSpecs[size] = {
+            fraction: sizeSpec.afterWash.raw,
+            decimal: sizeSpec.afterWash.decimal
+          };
+          hasAfterWashData = true;
+        }
+      });
+
+      if (hasAfterWashData) {
+        afterWashColorSpecs.push({
+          no: rowIndex + 1,
+          seq_no: row.序号,
+          MeasurementPointEngName: row.英文描述 || '',
+          MeasurementPointChiName: row.中文描述 || '',
+          TolMinus: {
+            fraction: row.Tol_Minus?.raw || '',
+            decimal: row.Tol_Minus?.decimal || 0
+          },
+          TolPlus: {
+            fraction: row.Tol_Plus?.raw || '',
+            decimal: row.Tol_Plus?.decimal || 0
+          },
+          sizeSpecs: afterWashSizeSpecs
+        });
+      }
+    });
+
+    // Create SINGLE after wash spec object for ALL colors with merged applied colors
+    if (afterWashColorSpecs.length > 0) {
+      newAfterWashSpec = {
+        _id: existingAfterWashAllSpec ? existingAfterWashAllSpec._id : new ObjectId(), // Keep existing ID if updating
+        colorCode: 'ALL',
+        Color: 'ALL',
+        ChnColor: 'ALL',
+        ColorKey: 'ALL',
+        appliedColors: allAppliedColors, // Use merged colors list
+        Shrinkage: specData.shrinkageInfo,
+        uploadedAt: new Date(),
+        lastUpdatedColors: selectedColors, // Track which colors were updated in this upload
+        specs: afterWashColorSpecs
+      };
+      console.log('✅ After wash spec object created/updated for ALL colors');
+      console.log('Applied colors:', allAppliedColors);
+    }
+
+    // Process Before Wash Specs for EACH selected color
     selectedColors.forEach(colorCode => {
-      // Get color information from order
       const colorInfo = orderDocument.OrderColors?.find(oc => oc.ColorCode === colorCode);
       
       if (!colorInfo) {
         console.warn(`Color ${colorCode} not found in order colors`);
-        return; // Skip this color if not found
+        return;
       }
 
-      console.log(`Processing color: ${colorCode}`);
-
-      // Process Before Wash Specs for this color
+      console.log(`Processing before wash specs for color: ${colorCode}`);
+      
       const beforeWashColorSpecs = [];
-      const afterWashColorSpecs = [];
       
       specData.rows.forEach((row, rowIndex) => {
-        // Create size specifications object for this measurement point
         const beforeWashSizeSpecs = {};
-        const afterWashSizeSpecs = {};
-        
         let hasBeforeWashData = false;
-        let hasAfterWashData = false;
         
-        // Process each size - ONLY the sizes from Excel
         specData.sizeColumns.forEach(size => {
           const sizeSpec = row.specs[size];
           
-          // Before wash size spec
           if (sizeSpec && sizeSpec.beforeWash && 
               sizeSpec.beforeWash.raw !== null && 
               sizeSpec.beforeWash.raw !== undefined &&
@@ -173,21 +235,8 @@ export const saveWashingSpecs = async (req, res) => {
             };
             hasBeforeWashData = true;
           }
-          
-          // After wash size spec
-          if (sizeSpec && sizeSpec.afterWash && 
-              sizeSpec.afterWash.raw !== null && 
-              sizeSpec.afterWash.raw !== undefined &&
-              sizeSpec.afterWash.raw !== '') {
-            afterWashSizeSpecs[size] = {
-              fraction: sizeSpec.afterWash.raw,
-              decimal: sizeSpec.afterWash.decimal
-            };
-            hasAfterWashData = true;
-          }
         });
 
-        // Create measurement point object for before wash
         if (hasBeforeWashData) {
           beforeWashColorSpecs.push({
             no: rowIndex + 1,
@@ -202,36 +251,14 @@ export const saveWashingSpecs = async (req, res) => {
               fraction: row.Tol_Plus?.raw || '',
               decimal: row.Tol_Plus?.decimal || 0
             },
-            sizeSpecs: beforeWashSizeSpecs // Object with size as key
-          });
-        }
-
-        // Create measurement point object for after wash
-        if (hasAfterWashData) {
-          afterWashColorSpecs.push({
-            no: rowIndex + 1,
-            seq_no: row.序号,
-            MeasurementPointEngName: row.英文描述 || '',
-            MeasurementPointChiName: row.中文描述 || '',
-            TolMinus: {
-              fraction: row.Tol_Minus?.raw || '',
-              decimal: row.Tol_Minus?.decimal || 0
-            },
-            TolPlus: {
-              fraction: row.Tol_Plus?.raw || '',
-              decimal: row.Tol_Plus?.decimal || 0
-            },
-            sizeSpecs: afterWashSizeSpecs // Object with size as key
+            sizeSpecs: beforeWashSizeSpecs
           });
         }
       });
 
-      console.log(`Color ${colorCode} - Before wash specs: ${beforeWashColorSpecs.length}, After wash specs: ${afterWashColorSpecs.length}`);
-
-      // Create color object for before wash specs - SIMPLIFIED STRUCTURE
       if (beforeWashColorSpecs.length > 0) {
         newBeforeWashSpecs.push({
-          _id: new ObjectId(), // Generate new ObjectId
+          _id: new ObjectId(),
           colorCode: colorCode,
           Color: colorInfo.Color,
           ChnColor: colorInfo.ChnColor,
@@ -241,39 +268,27 @@ export const saveWashingSpecs = async (req, res) => {
           specs: beforeWashColorSpecs
         });
       }
-
-      // Create color object for after wash specs - SIMPLIFIED STRUCTURE
-      if (afterWashColorSpecs.length > 0) {
-        newAfterWashSpecs.push({
-          _id: new ObjectId(), // Generate new ObjectId
-          colorCode: colorCode,
-          Color: colorInfo.Color,
-          ChnColor: colorInfo.ChnColor,
-          ColorKey: colorInfo.ColorKey,
-          Shrinkage: specData.shrinkageInfo, 
-          uploadedAt: new Date(),
-          specs: afterWashColorSpecs
-        });
-      }
     });
 
     console.log('Final specs created:', {
       beforeWashSpecs: newBeforeWashSpecs.length,
-      afterWashSpecs: newAfterWashSpecs.length
+      afterWashSpec: newAfterWashSpec ? 1 : 0,
+      totalAppliedColors: allAppliedColors.length
     });
 
-    // Merge with existing specs (remove existing entries for the same colors, then add new ones)
+    // Merge with existing specs
     const updatedBeforeWashSpecs = [
       ...existingBeforeWashSpecs.filter(spec => !selectedColors.includes(spec.colorCode)),
       ...newBeforeWashSpecs
     ];
 
+    // For after wash specs, remove existing 'ALL' entry and add new one with merged colors
     const updatedAfterWashSpecs = [
-      ...existingAfterWashSpecs.filter(spec => !selectedColors.includes(spec.colorCode)),
-      ...newAfterWashSpecs
+      ...existingAfterWashSpecs.filter(spec => spec.colorCode !== 'ALL'),
+      ...(newAfterWashSpec ? [newAfterWashSpec] : [])
     ];
 
-    // Update database - REMOVED WashingSpecsMetadata
+    // Update database
     const updateData = {
       beforeWashSpecs: updatedBeforeWashSpecs,
       afterWashSpecs: updatedAfterWashSpecs
@@ -295,21 +310,21 @@ export const saveWashingSpecs = async (req, res) => {
       return total + colorSpec.specs.length;
     }, 0);
 
-    const totalAfterWashMeasurements = newAfterWashSpecs.reduce((total, colorSpec) => {
-      return total + colorSpec.specs.length;
-    }, 0);
+    const totalAfterWashMeasurements = newAfterWashSpec ? newAfterWashSpec.specs.length : 0;
 
     res.status(200).json({
       message: `Successfully updated washing specs for MO No '${moNo}' with ${selectedColors.length} color(s).`,
       details: {
         updatedColors: selectedColors,
+        allAppliedColors: allAppliedColors, // Show all colors that have specs
         beforeWashMeasurements: totalBeforeWashMeasurements,
         afterWashMeasurements: totalAfterWashMeasurements,
         totalSizes: specData.sizeColumns?.length || 0,
         availableSizes: specData.sizeColumns,
         structure: {
           beforeWashColors: updatedBeforeWashSpecs.length,
-          afterWashColors: updatedAfterWashSpecs.length
+          afterWashSpecs: updatedAfterWashSpecs.length,
+          afterWashNote: `After wash specs are shared across ${allAppliedColors.length} colors: ${allAppliedColors.join(', ')}`
         }
       }
     });

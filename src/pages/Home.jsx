@@ -87,12 +87,12 @@ function Home() {
              version: '0.1',
           },
           {
-            path: "",
+            path: "/select-dt-specs",
             roles: ["Washing Clerk", "QA Clerk"],
             image: "assets/Home/select-specs.png",
             title: t("home.select_dt_specs"),
             description: "Select After Wash DT Specs",
-             version: '0',
+             version: '0.1',
           },
           {
             path: "",
@@ -369,7 +369,7 @@ function Home() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-800 text-slate-800 dark:text-slate-200">
       {/* Navigation Tabs */}
-      <nav className="fixed top-16 left-0 right-0 z-40 bg-white/90 dark:bg-slate-900/90 backdrop-blur-sm border-b border-slate-200 dark:border-slate-700">
+      <nav className="fixed top-16 left-0 right-0 z-10 bg-white/5 dark:bg-slate-900/5 backdrop-blur-sm border-b border-slate-200 dark:border-slate-700">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex space-x-1 overflow-x-auto py-3 scrollbar-hide">
             {filteredSections.map((section) => (
@@ -391,71 +391,10 @@ function Home() {
       </nav>
 
       {/* Main Content */}
-      <main className="pt-4 pb-8">
+      <main className="pt-20 pb-8">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          {/* Stats Overview
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-            <div className="bg-white dark:bg-slate-800 rounded-2xl p-6 shadow-lg border border-slate-200 dark:border-slate-700">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-slate-600 dark:text-slate-400">Total Modules</p>
-                  <p className="text-2xl font-bold text-slate-900 dark:text-white">
-                    {allSections.reduce((acc, section) => acc + section.items.length, 0)}
-                  </p>
-                </div>
-                <div className="p-3 bg-blue-100 dark:bg-blue-900/30 rounded-full">
-                  <Layers className="w-6 h-6 text-blue-600 dark:text-blue-400" />
-                </div>
-              </div>
-            </div>
-
-            <div className="bg-white dark:bg-slate-800 rounded-2xl p-6 shadow-lg border border-slate-200 dark:border-slate-700">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-slate-600 dark:text-slate-400">Active</p>
-                  <p className="text-2xl font-bold text-green-600">
-                    {allSections.reduce((acc, section) => 
-                      acc + section.items.filter(item => item.version === '0.1').length, 0
-                    )}
-                  </p>
-                </div>
-                <div className="p-3 bg-green-100 dark:bg-green-900/30 rounded-full">
-                  <CheckSquare className="w-6 h-6 text-green-600 dark:text-green-400" />
-                </div>
-              </div>
-            </div>
-
-            <div className="bg-white dark:bg-slate-800 rounded-2xl p-6 shadow-lg border border-slate-200 dark:border-slate-700">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-slate-600 dark:text-slate-400">Coming Soon</p>
-                  <p className="text-2xl font-bold text-red-600">
-                    {allSections.reduce((acc, section) => 
-                      acc + section.items.filter(item => item.version === '0').length, 0
-                    )}
-                  </p>
-                </div>
-                <div className="p-3 bg-red-100 dark:bg-red-900/30 rounded-full">
-                  <Settings className="w-6 h-6 text-red-600 dark:text-red-400" />
-                </div>
-              </div>
-            </div>
-
-            <div className="bg-white dark:bg-slate-800 rounded-2xl p-6 shadow-lg border border-slate-200 dark:border-slate-700">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-slate-600 dark:text-slate-400">Categories</p>
-                  <p className="text-2xl font-bold text-purple-600">{allSections.length}</p>
-                </div>
-                <div className="p-3 bg-purple-100 dark:bg-purple-900/30 rounded-full">
-                  <BarChart3 className="w-6 h-6 text-purple-600 dark:text-purple-400" />
-                </div>
-              </div>
-            </div>
-          </div> */}
-
           {/* Sections */}
-          <div className="space-y-12">
+          <div className="space-y-6">
             {filteredSections.length > 0 ? (
               filteredSections.map((section) => (
                 <section

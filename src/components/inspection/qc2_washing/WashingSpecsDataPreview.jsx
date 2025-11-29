@@ -211,13 +211,14 @@ const WashingSpecsDataPreview = ({ moNo, allSpecData, selectedColors = [] }) => 
             </div>
           </div>
           <div>
-            <h4 className="font-semibold text-green-300 mb-2">After Wash Specs:</h4>
+            <h4 className="font-semibold text-green-300 mb-2">After Wash Specs (Shared):</h4>
             <div className="space-y-1">
-              {selectedColors.map(color => (
-                <div key={`after-${color.ColorCode}`} className="text-green-400 text-sm">
-                  → {color.ColorCode} ({color.Color}): {specData.rows?.length || 0} measurements
-                </div>
-              ))}
+              <div className="text-green-400 text-sm">
+                → ALL Colors: {specData.rows?.length || 0} measurements
+              </div>
+              <div className="text-green-300 text-xs">
+                (Applied to: {selectedColors.map(c => c.ColorCode).join(', ')})
+              </div>
             </div>
           </div>
         </div>
