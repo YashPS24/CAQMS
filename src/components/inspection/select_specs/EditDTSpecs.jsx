@@ -63,19 +63,24 @@ const EditDTSpecs = () => {
   const [isPatternFilterActive, setIsPatternFilterActive] = useState(true);
 
   // Fetch all MO numbers that exist in the BuyerSpecTemplates collection
-  useEffect(() => {
-    const fetchTemplateMonos = async () => {
-      try {
-        const response = await axios.get(
-          `${API_BASE_URL}/api/buyer-spec-templates/mo-options`
-        );
-        setMoOptions(response.data.map((m) => ({ value: m, label: m })));
-      } catch (error) {
-        console.error("Error fetching MO options for templates:", error);
-      }
-    };
-    fetchTemplateMonos();
-  }, []);
+ useEffect(() => {
+  const fetchTemplateMonos = async () => {
+    try {
+      const response = await axios.get(
+        `${API_BASE_URL}/api/buyer-spec-templates/mo-options`
+      );
+      // If response.data contains objects with moNo property
+      setMoOptions(response.data.map((item) => ({ 
+        value: item.moNo || item, // Extract moNo if it's an object, otherwise use the item directly
+        label: item.moNo || item 
+      })));
+    } catch (error) {
+      console.error("Error fetching MO options for templates:", error);
+    }
+  };
+
+  fetchTemplateMonos();
+}, []);
 
   // Fetch detailed data when a MO is selected
   useEffect(() => {

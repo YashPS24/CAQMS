@@ -40,7 +40,9 @@ export const BuyerSpecTemplateM2 =
 export async function disconnectMongoDB() {
     try {
         await caProdConnection.close();
-        await caEcoConnection.close();
+        await caEcoConnectio
+        
+        n.close();
         console.log('MongoDB connections closed.');
     } catch (error) {
         console.error('Error disconnecting MongoDB:', error);

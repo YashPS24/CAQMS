@@ -8,19 +8,16 @@ import {
 // New endpoint to save a buyer-specific measurement spec template
 export const saveBuyerSpecTemplate = async (req, res) => {
   try {
-    console.log("Received request body:", JSON.stringify(req.body, null, 2)); // Debug log
     
     const { moNo, buyer, stage, specData } = req.body;
 
     // Basic validation
     if (!moNo || !buyer || !stage || !specData || !Array.isArray(specData)) {
-      console.error("Validation failed:", { moNo, buyer, stage, specDataType: typeof specData, specDataLength: specData?.length });
       return res
         .status(400)
         .json({ error: "Missing or invalid data provided. moNo, buyer, stage, and specData are required." });
     }
 
-    console.log("Validation passed, attempting to save/update template");
 
     // Use findOneAndUpdate with upsert to either create a new template or update an existing one for the same MO No.
     const result = await BuyerSpecTemplate.findOneAndUpdate(
@@ -29,15 +26,12 @@ export const saveBuyerSpecTemplate = async (req, res) => {
       { new: true, upsert: true, runValidators: true } // options
     );
 
-    console.log("Template saved successfully:", result._id);
 
     res.status(201).json({
       message: "Buyer spec template saved successfully.",
       data: result
     });
   } catch (error) {
-    console.error("Error saving buyer spec template:", error);
-    console.error("Error stack:", error.stack);
     
     // Check if it's a validation error
     if (error.name === 'ValidationError') {
@@ -293,17 +287,14 @@ export const getBuyerSpecOrderDetails = async (req, res) => {
       // Find the "ALL" color spec or use the first available spec
       const specData = order.afterWashSpecs.find(spec => spec.colorCode === "ALL") || order.afterWashSpecs[0];
       
-      console.log("Found spec data:", specData); // Debug log
       
       if (specData && specData.specs) {
         // Get sizes from the first spec's sizeSpecs
         if (specData.specs[0] && specData.specs[0].sizeSpecs) {
           specSizes = Object.keys(specData.specs[0].sizeSpecs);
-          console.log("Spec sizes found:", specSizes); // Debug log
         }
 
         buyerSpec = specData.specs.map((spec) => {
-          console.log("Processing spec:", spec.seq_no, "sizeSpecs:", spec.sizeSpecs); // Debug log
           
           // Convert tolerance values to their fractional parts
           const tolMinusMagnitude =
@@ -326,14 +317,10 @@ export const getBuyerSpecOrderDetails = async (req, res) => {
             sizeSpecs: spec.sizeSpecs || {} // Use sizeSpecs directly from afterWashSpecs
           };
           
-          console.log("Final spec result:", result); // Debug log
           return result;
         });
       }
     }
-
-    console.log("Final buyerSpec array:", buyerSpec); // Debug log
-    console.log("Final specSizes array:", specSizes); // Debug log
 
     res.json({
       moNo: order.Order_No,

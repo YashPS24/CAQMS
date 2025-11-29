@@ -16,55 +16,24 @@ const BuyerSpecPreview = ({
   const [specOrder, setSpecOrder] = useState([]);
   const [isSaving, setIsSaving] = useState(false);
 
-  // Enhanced debug logging
-  useEffect(() => {
-    if (isOpen) {
-      console.log("=== BuyerSpecPreview Debug Info ===");
-      console.log("orderData:", orderData);
-      console.log("orderData.sizes:", orderData?.sizes);
-      console.log("selectedSpecs:", selectedSpecs);
-      console.log("selectedSpecs length:", selectedSpecs.length);
-      
-      if (selectedSpecs.length > 0) {
-        console.log("First spec:", selectedSpecs[0]);
-        console.log("First spec sizeSpecs:", selectedSpecs[0].sizeSpecs);
-        console.log("First spec sizeSpecs keys:", selectedSpecs[0].sizeSpecs ? Object.keys(selectedSpecs[0].sizeSpecs) : "No sizeSpecs");
-      }
-      
-      // Test getSizes function
-      const testSizes = getSizes();
-      console.log("getSizes() result:", testSizes);
-      console.log("getSizes() length:", testSizes.length);
-    }
-  }, [isOpen, orderData, selectedSpecs]);
 
   // Extract sizes from the first spec if orderData.sizes is not available
   const getSizes = () => {
-    console.log("getSizes called");
-    console.log("orderData?.sizes:", orderData?.sizes);
-    console.log("orderData?.sizes length:", orderData?.sizes?.length);
     
     if (orderData?.sizes && orderData.sizes.length > 0) {
-      console.log("Using orderData.sizes:", orderData.sizes);
       return orderData.sizes;
     }
-    
-    console.log("selectedSpecs.length:", selectedSpecs.length);
-    console.log("selectedSpecs[0]?.sizeSpecs:", selectedSpecs[0]?.sizeSpecs);
     
     // Fallback: extract sizes from the first spec's sizeSpecs
     if (selectedSpecs.length > 0 && selectedSpecs[0].sizeSpecs) {
       const sizes = Object.keys(selectedSpecs[0].sizeSpecs);
-      console.log("Extracted sizes from spec:", sizes);
       return sizes;
     }
     
-    console.log("No sizes found, returning empty array");
     return [];
   };
 
   const sizes = getSizes();
-  console.log("Final sizes array:", sizes);
 
   const decimalToFractionString = (decimal) => {
     if (decimal === null || decimal === undefined || isNaN(decimal)) return "-";
@@ -109,7 +78,6 @@ const BuyerSpecPreview = ({
         .map((spec, index) => ({ seq: spec.seq, order: index + 1 }))
         .sort((a, b) => a.seq - b.seq);
       setSpecOrder(initialOrder);
-      console.log("Initial spec order:", initialOrder);
     }
   }, [isOpen, selectedSpecs]);
 
@@ -159,8 +127,6 @@ const BuyerSpecPreview = ({
         specData: specData
       };
 
-      console.log("Payload being sent:", payload);
-
       const apiEndpoint =
         selectedStage.value === "M2"
           ? `${API_BASE_URL}/api/buyer-spec-templates-m2`
@@ -194,10 +160,6 @@ const BuyerSpecPreview = ({
       }
 
     } catch (error) {
-      console.error("Error saving spec template:", error);
-      console.error("Error response:", error.response?.data);
-      console.error("Error status:", error.response?.status);
-      console.error("Error headers:", error.response?.headers);
       
       const errorMessage = error.response?.data?.error || 
                           error.response?.data?.details || 
@@ -223,9 +185,6 @@ const BuyerSpecPreview = ({
   const sortedSpecs = specOrder
     .map((orderedItem) => selectedSpecs.find((s) => s.seq === orderedItem.seq))
     .filter(Boolean);
-
-  console.log("Rendering table with sizes:", sizes);
-  console.log("Sorted specs:", sortedSpecs);
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-60 z-50 flex justify-center items-center p-4">
@@ -317,7 +276,6 @@ const BuyerSpecPreview = ({
                   </td>
                   {sizes.map((size) => {
                     const sizeSpec = spec.sizeSpecs?.[size];
-                    console.log(`Rendering: Spec ${spec.seq}, Size ${size}:`, sizeSpec);
                     
                     return (
                       <td
