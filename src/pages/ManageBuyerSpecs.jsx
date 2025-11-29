@@ -4,12 +4,23 @@ import { ListPlus, Wrench, Shield, Sparkles, User } from "lucide-react";
 import SelectDTSpecPageTitle from "../components/inspection/select_specs/SelectDTSpecPageTitle";
 import SelectDTBuyerSpec from "../components/inspection/select_specs/SelectDTBuyerSpec";
 import EditDTSpecs from "../components/inspection/select_specs/EditDTSpecs";
+import SuccessToast from "../components/inspection/select_specs/SuccessToast"; // Import SuccessToast
 import { useAuth } from "../components/authentication/AuthContext";
 
 const ManageBuyerSpecs = () => {
   const { user } = useAuth();
   const { t } = useTranslation();
   const [activeTab, setActiveTab] = useState("select");
+  
+  // Add success toast state at the parent level
+  const [showSuccessToast, setShowSuccessToast] = useState(false);
+  const [successMessage, setSuccessMessage] = useState("");
+
+  // Success handler function to pass down to children
+  const handleGlobalSuccess = (message) => {
+    setSuccessMessage(message);
+    setShowSuccessToast(true);
+  };
 
   const tabs = useMemo(
     () => [
@@ -17,18 +28,18 @@ const ManageBuyerSpecs = () => {
         id: "select",
         label: "Select Specs",
         icon: <ListPlus size={18} />,
-        component: <SelectDTBuyerSpec />,
+        component: <SelectDTBuyerSpec onGlobalSuccess={handleGlobalSuccess} />, // Pass success handler
         description: "Select and Configure Buyer Specifications"
       },
       {
         id: "edit",
         label: "Edit Specs",
         icon: <Wrench size={18} />,
-        component: <EditDTSpecs />,
+        component: <EditDTSpecs onGlobalSuccess={handleGlobalSuccess} />, // Pass success handler
         description: "Edit and Modify Existing Specifications"
       }
     ],
-    []
+    [handleGlobalSuccess] // Add dependency
   );
 
   const activeComponent = useMemo(() => {
@@ -41,6 +52,7 @@ const ManageBuyerSpecs = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-green-50 to-blue-50 dark:from-gray-900 dark:via-slate-900 dark:to-gray-800 text-gray-800 dark:text-gray-200">
+      {/* All your existing JSX content remains exactly the same */}
       {/* Background Effects */}
       <div className="fixed inset-0 overflow-hidden pointer-events-none">
         <div className="absolute top-0 right-0 w-96 h-96 bg-green-400/10 dark:bg-green-600/10 rounded-full blur-3xl animate-pulse"></div>
@@ -68,19 +80,12 @@ const ManageBuyerSpecs = () => {
                     <h1 className="text-sm sm:text-base font-black text-white tracking-tight truncate">
                       Buyer Specs Management
                     </h1>
-                    {/* <div className="flex items-center gap-1 px-1.5 py-0.5 bg-white/20 backdrop-blur-sm rounded-full flex-shrink-0">
-                      <Sparkles size={10} className="text-yellow-300" />
-                      <span className="text-[10px] font-bold text-white">
-                        PRO
-                      </span>
-                    </div> */}
                   </div>
                   <p className="text-[10px] sm:text-xs text-green-100 font-medium truncate">
                     Specification Management System
                   </p>
                 </div>
               </div>
-
               {user && (
                 <div className="flex items-center gap-2 bg-white/10 backdrop-blur-md border border-white/20 rounded-lg px-2.5 py-1.5 shadow-xl flex-shrink-0">
                   <div className="flex items-center justify-center w-8 h-8 bg-gradient-to-br from-yellow-400 to-orange-500 rounded-md shadow-lg">
@@ -169,12 +174,6 @@ const ManageBuyerSpecs = () => {
                       <h1 className="text-2xl font-black text-white tracking-tight">
                         Buyer Specs Management System
                       </h1>
-                      {/* <div className="flex items-center gap-1 px-2 py-0.5 bg-white/20 backdrop-blur-sm rounded-full">
-                        <Sparkles size={12} className="text-yellow-300" />
-                        <span className="text-xs font-bold text-white">
-                          PRO
-                        </span>
-                      </div> */}
                     </div>
                     <p className="text-sm text-green-100 font-medium">
                       Specification Management & Configuration System
@@ -269,6 +268,13 @@ const ManageBuyerSpecs = () => {
           </div>
         </div>
       </div>
+
+      {/* Global SuccessToast - Using your existing SuccessToast component */}
+      <SuccessToast
+        isOpen={showSuccessToast}
+        message={successMessage}
+        onClose={() => setShowSuccessToast(false)}
+      />
 
       {/* Global Styles */}
       <style jsx>{`

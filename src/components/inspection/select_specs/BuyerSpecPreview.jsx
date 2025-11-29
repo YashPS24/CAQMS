@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from "react";
 import axios from "axios";
-import Swal from "sweetalert2";
 import { API_BASE_URL } from "../../../../config";
 import { ArrowUpDown, Save, X } from "lucide-react";
+import SuccessToast from "./SuccessToast"; // Keep only for error toast
 
 const BuyerSpecPreview = ({
   isOpen,
@@ -13,19 +13,24 @@ const BuyerSpecPreview = ({
   selectedStage,
   onSaveSuccess
 }) => {
+  // Move early return to the very beginning, before any hooks
+  if (!isOpen || !selectedSpecs || !Array.isArray(selectedSpecs)) {
+    return null;
+  }
+
   const [specOrder, setSpecOrder] = useState([]);
   const [isSaving, setIsSaving] = useState(false);
-
+  const [showErrorToast, setShowErrorToast] = useState(false);
+  const [toastMessage, setToastMessage] = useState("");
 
   // Extract sizes from the first spec if orderData.sizes is not available
   const getSizes = () => {
-    
     if (orderData?.sizes && orderData.sizes.length > 0) {
       return orderData.sizes;
     }
     
-    // Fallback: extract sizes from the first spec's sizeSpecs
-    if (selectedSpecs.length > 0 && selectedSpecs[0].sizeSpecs) {
+    // Add safety checks for selectedSpecs
+    if (selectedSpecs && selectedSpecs.length > 0 && selectedSpecs[0]?.sizeSpecs) {
       const sizes = Object.keys(selectedSpecs[0].sizeSpecs);
       return sizes;
     }
@@ -37,12 +42,10 @@ const BuyerSpecPreview = ({
 
   const decimalToFractionString = (decimal) => {
     if (decimal === null || decimal === undefined || isNaN(decimal)) return "-";
-
     const sign = decimal < 0 ? "-" : "";
     const absDecimal = Math.abs(decimal);
     const whole = Math.floor(absDecimal);
     const fractionValue = absDecimal - whole;
-
     if (fractionValue === 0) return `${sign}${whole || 0}`;
 
     const tolerance = 0.01;
@@ -67,13 +70,12 @@ const BuyerSpecPreview = ({
     const closest = fractions.find(
       (fr) => Math.abs(fractionValue - fr.v) < tolerance
     );
-
     const fractionPart = closest ? closest.f : fractionValue.toFixed(3);
     return `${sign}${whole > 0 ? whole + " " : ""}${fractionPart}`;
   };
 
   useEffect(() => {
-    if (isOpen && selectedSpecs.length > 0) {
+    if (isOpen && selectedSpecs && Array.isArray(selectedSpecs) && selectedSpecs.length > 0) {
       const initialOrder = selectedSpecs
         .map((spec, index) => ({ seq: spec.seq, order: index + 1 }))
         .sort((a, b) => a.seq - b.seq);
@@ -96,6 +98,19 @@ const BuyerSpecPreview = ({
   };
 
   const handleSave = async () => {
+    // Add validation
+    if (!selectedSpecs || !Array.isArray(selectedSpecs) || selectedSpecs.length === 0) {
+      setToastMessage("No specs selected to save");
+      setShowErrorToast(true);
+      return;
+    }
+
+    if (!orderData?.moNo) {
+      setToastMessage("Missing MO number");
+      setShowErrorToast(true);
+      return;
+    }
+
     setIsSaving(true);
     try {
       const specData = sizes.map((size) => {
@@ -138,49 +153,27 @@ const BuyerSpecPreview = ({
 
       console.log("Response:", response.data);
 
-      // Show success message with SweetAlert2
-      await Swal.fire({
-        icon: 'success',
-        title: 'Success!',
-        text: `Spec template (${selectedStage.label}) saved successfully!`,
-        confirmButtonText: 'OK',
-        confirmButtonColor: '#10B981',
-        timer: 3000,
-        timerProgressBar: true,
-        showConfirmButton: true,
-        allowOutsideClick: false
-      });
-
-      // Close the modal and notify parent component
+      // Close the modal immediately
       onClose();
       
-      // Call parent callback to clear/refresh the page
+      // Call parent callback immediately to show success and clear/refresh the page
       if (onSaveSuccess) {
         onSaveSuccess();
       }
 
     } catch (error) {
-      
       const errorMessage = error.response?.data?.error || 
                           error.response?.data?.details || 
                           error.message || 
                           'Unknown error occurred';
       
-      // Show error message with SweetAlert2
-      await Swal.fire({
-        icon: 'error',
-        title: 'Error!',
-        text: `Failed to save: ${errorMessage}`,
-        confirmButtonText: 'OK',
-        confirmButtonColor: '#EF4444',
-        allowOutsideClick: false
-      });
+      // Show error toast (keep this local since errors should be immediate)
+      setToastMessage(`Failed to save: ${errorMessage}`);
+      setShowErrorToast(true);
     } finally {
       setIsSaving(false);
     }
   };
-
-  if (!isOpen) return null;
 
   const sortedSpecs = specOrder
     .map((orderedItem) => selectedSpecs.find((s) => s.seq === orderedItem.seq))
@@ -200,7 +193,7 @@ const BuyerSpecPreview = ({
             <X size={24} />
           </button>
         </div>
-
+        
         <div className="p-6 overflow-auto flex-grow">
           {/* Debug info */}
           <div className="mb-4 p-2 bg-gray-100 rounded text-xs">
@@ -312,6 +305,14 @@ const BuyerSpecPreview = ({
           </button>
         </div>
       </div>
+
+      {/* Keep only Error Toast */}
+      <SuccessToast
+        isOpen={showErrorToast}
+        message={toastMessage}
+        onClose={() => setShowErrorToast(false)}
+        isError={true}
+      />
     </div>
   );
 };

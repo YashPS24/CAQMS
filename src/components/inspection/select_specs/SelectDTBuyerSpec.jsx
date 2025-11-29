@@ -1,322 +1,395 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import axios from "axios";
-import Swal from "sweetalert2";
+import Select from "react-select";
 import { API_BASE_URL } from "../../../../config";
-import { ArrowUpDown, Save, X } from "lucide-react";
+import { Eye, Search, X, CheckCircle } from "lucide-react";
+import BuyerSpecPreview from "./BuyerSpecPreview";
+// Remove this import since we're using global success toast
+// import SuccessToast from "./SuccessToast";
 
-const BuyerSpecPreview = ({
-  isOpen,
-  onClose,
-  selectedSpecs,
-  orderData,
-  selectedBuyer,
-  selectedStage,
-  onSaveSuccess
-}) => {
-  const [specOrder, setSpecOrder] = useState([]);
-  const [isSaving, setIsSaving] = useState(false);
+// Helper function to derive buyer from MO number
+const getBuyerFromMoNumber = (moNo) => {
+  if (!moNo) return "Other";
+  if (moNo.includes("COM")) return "MWW";
+  if (moNo.includes("CO")) return "Costco";
+  if (moNo.includes("AR")) return "Aritzia";
+  if (moNo.includes("RT")) return "Reitmans";
+  if (moNo.includes("AF")) return "ANF";
+  if (moNo.includes("NT")) return "STORI";
+  return "Other";
+};
 
+const SelectDTBuyerSpec = ({ onGlobalSuccess }) => { // Keep this prop
+  // NEW: Stage State
+  const [stage, setStage] = useState({ value: "M1", label: "M1 - 5 Points" });
+  const [buyer, setBuyer] = useState({ value: "ANF", label: "ANF" });
+  const [moNo, setMoNo] = useState(null);
+  const [moOptions, setMoOptions] = useState([]);
+  const [orderData, setOrderData] = useState(null);
+  const [selectedSpecs, setSelectedSpecs] = useState([]);
+  const [isPreviewOpen, setIsPreviewOpen] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [searchTerm, setSearchTerm] = useState("");
 
-  // Extract sizes from the first spec if orderData.sizes is not available
-  const getSizes = () => {;
-    
-    if (orderData?.sizes && orderData.sizes.length > 0) {
-      return orderData.sizes;
-    }
-    
-    
-    // Fallback: extract sizes from the first spec's sizeSpecs
-    if (selectedSpecs.length > 0 && selectedSpecs[0].sizeSpecs) {
-      const sizes = Object.keys(selectedSpecs[0].sizeSpecs);
-      return sizes;
-    }
-    
-    return [];
-  };
+  // Remove local success toast state since we're using global
+  // const [showSuccessToast, setShowSuccessToast] = useState(false);
+  // const [successMessage, setSuccessMessage] = useState("");
 
-  const sizes = getSizes();
+  // NEW: Stage Options
+  const stageOptions = [
+    { value: "M1", label: "M1 - 5 Points" },
+    { value: "M2", label: "M2 - 2 Points" }
+  ];
 
-  const decimalToFractionString = (decimal) => {
-    if (decimal === null || decimal === undefined || isNaN(decimal)) return "-";
-
-    const sign = decimal < 0 ? "-" : "";
-    const absDecimal = Math.abs(decimal);
-    const whole = Math.floor(absDecimal);
-    const fractionValue = absDecimal - whole;
-
-    if (fractionValue === 0) return `${sign}${whole || 0}`;
-
-    const tolerance = 0.01;
-    const fractions = [
-      { v: 0.0625, f: "1/16" },
-      { v: 0.125, f: "1/8" },
-      { v: 0.1875, f: "3/16" },
-      { v: 0.25, f: "1/4" },
-      { v: 0.3125, f: "5/16" },
-      { v: 0.375, f: "3/8" },
-      { v: 0.4375, f: "7/16" },
-      { v: 0.5, f: "1/2" },
-      { v: 0.5625, f: "9/16" },
-      { v: 0.625, f: "5/8" },
-      { v: 0.6875, f: "11/16" },
-      { v: 0.75, f: "3/4" },
-      { v: 0.8125, f: "13/16" },
-      { v: 0.875, f: "7/8" },
-      { v: 0.9375, f: "15/16" }
-    ];
-
-    const closest = fractions.find(
-      (fr) => Math.abs(fractionValue - fr.v) < tolerance
-    );
-
-    const fractionPart = closest ? closest.f : fractionValue.toFixed(3);
-    return `${sign}${whole > 0 ? whole + " " : ""}${fractionPart}`;
-  };
+  const buyerOptions = [
+    { value: "ANF", label: "ANF" },
+    // { value: "MWW", label: "MWW" },
+    // { value: "Costco", label: "Costco" },
+    // { value: "Aritzia", label: "Aritzia" },
+    // { value: "Reitmans", label: "Reitmans" },
+    // { value: "STORI", label: "STORI" },
+    // { value: "Other", label: "Other" }
+  ];
 
   useEffect(() => {
-    if (isOpen && selectedSpecs.length > 0) {
-      const initialOrder = selectedSpecs
-        .map((spec, index) => ({ seq: spec.seq, order: index + 1 }))
-        .sort((a, b) => a.seq - b.seq);
-      setSpecOrder(initialOrder);
-    }
-  }, [isOpen, selectedSpecs]);
-
-  const handleOrderChange = (seq, newOrder) => {
-    setSpecOrder((current) =>
-      current.map((item) =>
-        item.seq === seq
-          ? { ...item, order: parseInt(newOrder, 10) || 0 }
-          : item
-      )
-    );
-  };
-
-  const applyOrder = () => {
-    setSpecOrder((current) => [...current].sort((a, b) => a.order - b.order));
-  };
-
-  const handleSave = async () => {
-    setIsSaving(true);
-    try {
-      const specData = sizes.map((size) => {
-        const specDetails = specOrder.map((orderedSpec) => {
-          const spec = selectedSpecs.find((s) => s.seq === orderedSpec.seq);
-          const specValueDecimal = spec.sizeSpecs?.[size]?.decimal || 0;
-
-          return {
-            orderNo: orderedSpec.order,
-            specName: spec.measurementPoint,
-            chineseRemark: spec.chineseRemark,
-            seqNo: spec.seq,
-            tolMinus: spec.tolMinus,
-            tolPlus: spec.tolPlus,
-            specValueFraction: decimalToFractionString(specValueDecimal),
-            specValueDecimal: specValueDecimal
-          };
+    const fetchAllMonos = async () => {
+      try {
+        const response = await axios.get(`${API_BASE_URL}/api/filter-options`, {
+          withCredentials: true
         });
+        const allMonos = response.data.monos.map((m) => ({
+          value: m,
+          label: m
+        }));
+        setMoOptions(allMonos);
+      } catch (error) {
+        console.error("Error fetching MO options:", error);
+      }
+    };
 
-        return { size, specDetails };
-      });
+    fetchAllMonos();
+  }, []);
 
-      const buyerToSave = selectedBuyer ? selectedBuyer.value : orderData.buyer;
+  useEffect(() => {
+    if (moNo && moNo.value) {
+      const fetchOrderDetails = async () => {
+        setLoading(true);
+        setOrderData(null);
+        setSelectedSpecs([]);
+        try {
+          // Note: The order details (Available specs/Raw data) typically come from the same source
+          // regardless of stage. We will handle M1 vs M2 saving in the Preview component.
+          const response = await axios.get(
+            `${API_BASE_URL}/api/buyer-spec-order-details/${moNo.value}`,
+            { withCredentials: true }
+          );
 
-      const payload = {
-        moNo: orderData.moNo,
-        buyer: buyerToSave,
-        stage: selectedStage.value,
-        specData: specData
+          let fetchedData = response.data;
+
+          // Special handling for GPAF6117
+          if (moNo.value === "GPAF6117") {
+            const correctSizes = [
+              "2XS",
+              "XS",
+              "S",
+              "M",
+              "L",
+              "XL",
+              "XXL",
+              "XXXL"
+            ];
+            fetchedData.sizes = correctSizes;
+          }
+
+          const sortedSpec = fetchedData.buyerSpec.sort(
+            (a, b) => a.seq - b.seq
+          );
+
+          setOrderData({ ...response.data, buyerSpec: sortedSpec });
+        } catch (error) {
+          console.error("Error fetching order details:", error);
+        } finally {
+          setLoading(false);
+        }
       };
 
-
-      const apiEndpoint =
-        selectedStage.value === "M2"
-          ? `${API_BASE_URL}/api/buyer-spec-templates-m2`
-          : `${API_BASE_URL}/api/buyer-spec-templates`;
-
-      const response = await axios.post(apiEndpoint, payload, {
-        withCredentials: true
-      });
-
-
-      // Show success message with SweetAlert2 - AUTO HIDE
-      Swal.fire({
-        icon: 'success',
-        title: 'Success!',
-        text: `Spec template (${selectedStage.label}) saved successfully!`,
-        timer: 2000, // Auto close after 2 seconds
-        timerProgressBar: true,
-        showConfirmButton: false, // Hide the OK button
-        allowOutsideClick: false,
-        allowEscapeKey: false,
-        allowEnterKey: false
-      }).then(() => {
-        // This will execute after the timer expires or if manually closed
-        // Close the modal and notify parent component
-        onClose();
-        
-        // Call parent callback to clear/refresh the page
-        if (onSaveSuccess) {
-          onSaveSuccess();
-        }
-      });
-
-    } catch (error) {
-      
-      const errorMessage = error.response?.data?.error || 
-                          error.response?.data?.details || 
-                          error.message || 
-                          'Unknown error occurred';
-      
-      // Show error message with SweetAlert2 - REQUIRES USER ACTION
-      await Swal.fire({
-        icon: 'error',
-        title: 'Error!',
-        text: `Failed to save: ${errorMessage}`,
-        confirmButtonText: 'OK',
-        confirmButtonColor: '#EF4444',
-        allowOutsideClick: false
-      });
-    } finally {
-      setIsSaving(false);
+      fetchOrderDetails();
+    } else {
+      setOrderData(null);
+      setSelectedSpecs([]);
     }
+  }, [moNo]); // Note: We don't reset on stage change, as raw specs are usually the same
+
+  const handleClearFilters = () => {
+    // Reset stage to default M1? Optional. I'll leave it as is.
+    // setStage({ value: "M1", label: "M1 - 5 Points" });
+    setBuyer({ value: "ANF", label: "ANF" });
+    setMoNo(null);
+    setSearchTerm("");
+    setSelectedSpecs([]); // Clear selected specs as well
+    setOrderData(null); // Clear order data
   };
 
-  if (!isOpen) return null;
+  // Add the success callback function
+  const handleSaveSuccess = () => {
+    // Call the global success handler from parent
+    if (onGlobalSuccess) {
+      onGlobalSuccess(`Spec template (${stage.label}) saved successfully!`);
+    }
+    
+    // Clear the page after a short delay
+    setTimeout(() => {
+      // Reset all states to initial values
+      setStage({ value: "M1", label: "M1 - 5 Points" });
+      setBuyer({ value: "ANF", label: "ANF" });
+      setMoNo(null);
+      setSearchTerm("");
+      setSelectedSpecs([]);
+      setOrderData(null);
+      setIsPreviewOpen(false);
+    }, 1500);
+  };
 
-  const sortedSpecs = specOrder
-    .map((orderedItem) => selectedSpecs.find((s) => s.seq === orderedItem.seq))
-    .filter(Boolean);
+  const handleSpecToggle = (spec) => {
+    setSelectedSpecs((currentSelected) => {
+      const isSelected = currentSelected.some((s) => s.seq === spec.seq);
+      if (isSelected) {
+        return currentSelected.filter((s) => s.seq !== spec.seq);
+      } else {
+        return [...currentSelected, spec];
+      }
+    });
+  };
 
+  const filteredMoOptions = useMemo(() => {
+    if (!buyer) return moOptions;
+
+    return moOptions.filter(
+      (option) => getBuyerFromMoNumber(option.value) === buyer.value
+    );
+  }, [buyer, moOptions]);
+
+  const filteredSpecs = useMemo(() => {
+    if (!orderData) return [];
+
+    if (!searchTerm) return orderData.buyerSpec;
+
+    const lowercasedFilter = searchTerm.toLowerCase();
+
+    return orderData.buyerSpec.filter(
+      (spec) =>
+        spec.measurementPoint.toLowerCase().includes(lowercasedFilter) ||
+        spec.seq.toString().includes(lowercasedFilter)
+    );
+  }, [orderData, searchTerm]);
+
+  const selectStyles = {
+    control: (styles) => ({
+      ...styles,
+      backgroundColor: "var(--color-bg-secondary)",
+      border: "1px solid var(--color-border-primary)"
+    }),
+    option: (styles, { isFocused, isSelected }) => ({
+      ...styles,
+      backgroundColor: isSelected
+        ? "var(--color-primary)"
+        : isFocused
+        ? "var(--color-bg-tertiary)"
+        : "var(--color-bg-secondary)",
+      color: "var(--color-text-primary)",
+      ":active": {
+        ...styles[":active"],
+        backgroundColor: "var(--color-primary-active)"
+      }
+    }),
+    input: (styles) => ({ ...styles, color: "var(--color-text-primary)" }),
+    singleValue: (styles) => ({
+      ...styles,
+      color: "var(--color-text-primary)"
+    }),
+    menu: (styles) => ({
+      ...styles,
+      backgroundColor: "var(--color-bg-secondary)"
+    })
+  };
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-60 z-50 flex justify-center items-center p-4">
-      <div className="bg-white dark:bg-gray-800 rounded-xl shadow-2xl w-full max-w-screen-2xl my-8 flex flex-col h-[90vh]">
-        <div className="p-5 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center flex-shrink-0">
-          <h2 className="text-2xl font-bold text-gray-900 dark:text-white">
-            Preview & Order Specs - {selectedStage?.label}
+    <div className="min-h-screen bg-gray-100 dark:bg-gray-900 text-black dark:text-gray-200 p-4 sm:p-6 lg:p-8">
+      <div className="max-w-screen-2xl mx-auto">
+        <div className="max-w-2xl mx-auto p-4 bg-gray-300 dark:bg-gray-600 rounded-lg shadow-md mb-8">
+          <h2 className="text-xl font-bold mb-4 text-gray-800 dark:text-gray-100">
+            Filters
           </h2>
-          <button
-            onClick={onClose}
-            className="p-2 rounded-full text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700"
-          >
-            <X size={24} />
-          </button>
-        </div>
+          <div className="flex flex-row items-end gap-6">
+            {/* NEW: Measurement Stage Select */}
+            <div className="w-48">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                Measurement Stage
+              </label>
+              <Select
+                options={stageOptions}
+                value={stage}
+                onChange={setStage}
+                styles={selectStyles}
+                isSearchable={false}
+              />
+            </div>
 
-        <div className="p-6 overflow-auto flex-grow">
-          {/* Debug info */}
-          <div className="mb-4 p-2 bg-gray-100 rounded text-xs">
-            <strong>Debug:</strong> Sizes: {JSON.stringify(sizes)} | 
-            Specs count: {selectedSpecs.length} | 
-            Sorted specs: {sortedSpecs.length}
+            <div className="flex-1">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                Buyer
+              </label>
+              <Select
+                options={buyerOptions}
+                value={buyer}
+                onChange={setBuyer}
+                isClearable
+                styles={selectStyles}
+              />
+            </div>
+
+            <div className="flex-1">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                MO No
+              </label>
+              <Select
+                options={filteredMoOptions}
+                value={moNo}
+                onChange={(selectedOption) => {
+                  if (!buyer && selectedOption) {
+                    alert("Please select a Buyer before selecting an MO No.");
+                    return;
+                  }
+                  setMoNo(selectedOption);
+                }}
+                isClearable
+                isLoading={!moOptions.length}
+                styles={selectStyles}
+              />
+            </div>
+
+            <div className="pb-[1px]">
+              <button
+                onClick={handleClearFilters}
+                className="inline-flex items-center px-4 py-2 border border-gray-300 dark:border-gray-600 text-sm font-medium rounded-md text-gray-700 bg-gray-100 hover:bg-gray-200 dark:text-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+              >
+                <X className="mr-2 h-4 w-4" />
+                Clear
+              </button>
+            </div>
           </div>
+        </div>
 
-          <table className="w-full table-auto text-sm text-left text-gray-500 dark:text-gray-400">
-            <thead className="text-xs text-gray-700 uppercase bg-gray-100 dark:bg-gray-700 dark:text-gray-300 sticky top-0">
-              <tr>
-                <th scope="col" className="p-3 w-28">
-                  <div className="flex items-center">
-                    Order
+        {loading && (
+          <div className="text-center p-4">Loading spec details...</div>
+        )}
+
+        {orderData && (
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md">
+            <div className="p-4 border-b dark:border-gray-700 flex flex-col sm:flex-row justify-between items-center gap-4">
+              <h2 className="text-xl font-bold text-gray-800 dark:text-gray-100">
+                Available Specs for {moNo && moNo.label} ({stage.label})
+              </h2>
+              <div className="flex items-center gap-4 w-full sm:w-auto">
+                <div className="relative w-full sm:w-64">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
+                  <input
+                    type="text"
+                    placeholder="Search by name or seq..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="w-full pl-10 pr-10 py-2 border rounded-md bg-gray-100 dark:bg-gray-700 dark:border-gray-600 focus:ring-indigo-500 focus:border-indigo-500"
+                  />
+                  {searchTerm && (
                     <button
-                      onClick={applyOrder}
-                      className="ml-2 text-indigo-500 hover:text-indigo-700"
+                      onClick={() => setSearchTerm("")}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700"
                     >
-                      <ArrowUpDown size={16} />
+                      <X size={18} />
                     </button>
-                  </div>
-                </th>
-                <th scope="col" className="p-3 min-w-[200px]">
-                  Spec Name
-                </th>
-                <th scope="col" className="p-3 min-w-[200px]">
-                  Chinese Remark
-                </th>
-                <th scope="col" className="p-3 text-center">
-                  Seq
-                </th>
-                <th scope="col" className="p-3 text-center">
-                  Tol -
-                </th>
-                <th scope="col" className="p-3 text-center">
-                  Tol +
-                </th>
-                {sizes.map((size) => (
-                  <th key={size} scope="col" className="p-3 text-center">
-                    {size}
-                  </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {sortedSpecs.map((spec) => (
-                <tr
-                  key={spec.seq}
-                  className="bg-white dark:bg-gray-800 border-b dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600/50"
+                  )}
+                </div>
+                <button
+                  onClick={() => setIsPreviewOpen(true)}
+                  disabled={selectedSpecs.length === 0}
+                  className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-indigo-600 hover:bg-indigo-700 disabled:bg-gray-400 disabled:cursor-not-allowed whitespace-nowrap"
                 >
-                  <td className="p-2 text-center">
-                    <input
-                      type="number"
-                      value={
-                        specOrder.find((s) => s.seq === spec.seq)?.order || ""
-                      }
-                      onChange={(e) =>
-                        handleOrderChange(spec.seq, e.target.value)
-                      }
-                      className="w-20 text-center bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md py-1 focus:ring-indigo-500 focus:border-indigo-500"
-                    />
-                  </td>
-                  <td className="p-3 font-medium text-gray-900 dark:text-white">
-                    {spec.measurementPoint}
-                  </td>
-                  <td className="p-3">{spec.chineseRemark}</td>
-                  <td className="p-3 text-center">{spec.seq}</td>
-                  <td className="p-3 text-center text-red-600 dark:text-red-400 font-semibold">
-                    {decimalToFractionString(spec.tolMinus)}
-                  </td>
-                  <td className="p-3 text-center text-green-600 dark:text-green-400 font-semibold">
-                    {decimalToFractionString(spec.tolPlus)}
-                  </td>
-                  {sizes.map((size) => {
-                    const sizeSpec = spec.sizeSpecs?.[size];
-                    
-                    return (
-                      <td
-                        key={size}
-                        className="p-3 text-center font-mono font-medium text-gray-800 dark:text-gray-200"
-                      >
-                        {sizeSpec && sizeSpec.decimal !== undefined
-                          ? decimalToFractionString(sizeSpec.decimal)
-                          : "-"
-                        }
-                      </td>
-                    );
-                  })}
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+                  <Eye className="mr-2 -ml-1 h-5 w-5" />
+                  Preview ({selectedSpecs.length})
+                </button>
+              </div>
+            </div>
 
-        <div className="p-4 bg-gray-50 dark:bg-gray-800/50 border-t dark:border-gray-700 flex justify-end items-center gap-4 flex-shrink-0">
-          <button
-            onClick={onClose}
-            className="px-5 py-2 text-sm font-medium text-gray-700 bg-gray-200 hover:bg-gray-300 dark:bg-gray-600 dark:text-gray-200 dark:hover:bg-gray-500 rounded-lg"
-          >
-            Cancel
-          </button>
-          <button
-            onClick={handleSave}
-            disabled={isSaving}
-            className="inline-flex items-center px-5 py-2 text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg disabled:bg-indigo-400 disabled:cursor-not-allowed"
-          >
-            <Save className="mr-2 h-4 w-4" />
-            {isSaving ? "Saving..." : "Save Template"}
-          </button>
-        </div>
+            <div className="p-4 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+              {filteredSpecs.map((spec) => {
+                const isSelected = selectedSpecs.some(
+                  (s) => s.seq === spec.seq
+                );
+                return (
+                  <div
+                    key={spec.seq}
+                    onClick={() => handleSpecToggle(spec)}
+                    className={`p-3 rounded-lg border-2 flex items-center justify-between cursor-pointer transition-colors duration-200
+                                            ${
+                                              isSelected
+                                                ? "bg-red-100 dark:bg-red-900/40 border-red-400 dark:border-red-600"
+                                                : "bg-gray-50 dark:bg-gray-700/50 border-gray-200 dark:border-gray-600 hover:border-indigo-400 dark:hover:border-indigo-500"
+                                            }`}
+                  >
+                    <div className="flex-grow">
+                      <span
+                        className={`font-semibold text-gray-800 dark:text-gray-100 ${
+                          isSelected ? "text-red-800 dark:text-red-200" : ""
+                        }`}
+                      >
+                        {spec.seq}. {spec.measurementPoint}
+                      </span>
+                    </div>
+                    <div
+                      className={`h-6 w-6 rounded-full flex items-center justify-center transition-all duration-200
+                                            ${
+                                              isSelected
+                                                ? "bg-red-500"
+                                                : "bg-gray-300 dark:bg-gray-600"
+                                            }`}
+                    >
+                      {isSelected && (
+                        <CheckCircle size={16} className="text-white" />
+                      )}
+                    </div>
+                    <input
+                      type="checkbox"
+                      checked={isSelected}
+                      readOnly
+                      className="sr-only"
+                      aria-labelledby={`spec-label-${spec.seq}`}
+                    />
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
+        <BuyerSpecPreview
+          isOpen={isPreviewOpen}
+          onClose={() => setIsPreviewOpen(false)}
+          selectedSpecs={selectedSpecs}
+          orderData={orderData}
+          selectedBuyer={buyer}
+          selectedStage={stage}
+          onSaveSuccess={handleSaveSuccess} // Pass the success callback
+        />
+
+        {/* Remove the local SuccessToast since we're using the global one from ManageBuyerSpecs */}
+        {/* <SuccessToast
+          isOpen={showSuccessToast}
+          message={successMessage}
+          onClose={() => setShowSuccessToast(false)}
+        /> */}
       </div>
     </div>
   );
 };
 
-export default BuyerSpecPreview;
+export default SelectDTBuyerSpec;

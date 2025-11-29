@@ -93,12 +93,6 @@ export const getOrderColors = async (req, res) => {
 export const saveWashingSpecs = async (req, res) => {
   const { moNo, washingSpecsData, selectedColors } = req.body;
 
-  console.log('Save request received:', {
-    moNo,
-    selectedColors,
-    dataLength: washingSpecsData?.length
-  });
-
   if (!moNo || !washingSpecsData || washingSpecsData.length === 0) {
     return res.status(400).json({ message: "Missing MO Number or specs data." });
   }
@@ -118,12 +112,6 @@ export const saveWashingSpecs = async (req, res) => {
     }
 
     const specData = washingSpecsData[0];
-    
-    console.log('Processing spec data:', {
-      rowsCount: specData.rows?.length,
-      sizesCount: specData.sizeColumns?.length,
-      sizes: specData.sizeColumns
-    });
 
     // Get existing specs or initialize empty arrays
     const existingBeforeWashSpecs = orderDocument.beforeWashSpecs || [];
@@ -133,13 +121,8 @@ export const saveWashingSpecs = async (req, res) => {
     const existingAfterWashAllSpec = existingAfterWashSpecs.find(spec => spec.colorCode === 'ALL');
     const previouslyAppliedColors = existingAfterWashAllSpec ? (existingAfterWashAllSpec.appliedColors || []) : [];
     
-    console.log('Previously applied colors:', previouslyAppliedColors);
-    console.log('Currently selected colors:', selectedColors);
-    
     // Merge previous and current colors (remove duplicates)
     const allAppliedColors = [...new Set([...previouslyAppliedColors, ...selectedColors])];
-    
-    console.log('All applied colors (merged):', allAppliedColors);
 
     // Create new specs
     const newBeforeWashSpecs = [];
@@ -201,20 +184,11 @@ export const saveWashingSpecs = async (req, res) => {
         lastUpdatedColors: selectedColors, // Track which colors were updated in this upload
         specs: afterWashColorSpecs
       };
-      console.log('✅ After wash spec object created/updated for ALL colors');
-      console.log('Applied colors:', allAppliedColors);
     }
 
     // Process Before Wash Specs for EACH selected color
     selectedColors.forEach(colorCode => {
       const colorInfo = orderDocument.OrderColors?.find(oc => oc.ColorCode === colorCode);
-      
-      if (!colorInfo) {
-        console.warn(`Color ${colorCode} not found in order colors`);
-        return;
-      }
-
-      console.log(`Processing before wash specs for color: ${colorCode}`);
       
       const beforeWashColorSpecs = [];
       
@@ -268,12 +242,6 @@ export const saveWashingSpecs = async (req, res) => {
           specs: beforeWashColorSpecs
         });
       }
-    });
-
-    console.log('Final specs created:', {
-      beforeWashSpecs: newBeforeWashSpecs.length,
-      afterWashSpec: newAfterWashSpec ? 1 : 0,
-      totalAppliedColors: allAppliedColors.length
     });
 
     // Merge with existing specs
