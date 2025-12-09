@@ -101,21 +101,14 @@ async function ensurePoolConnected(pool, poolName, maxRetries = 3) {
 async function initializeServer() {
   console.log("--- Initializing Server ---");
 
-  console.log("Initializing YMDataStore SQL connection pool...");
-
   try {
     await connectPool(poolYMDataStore, "YMDataStore");
-    console.log("YMDataStore connection successful");
-    
-    console.log("Running initial DT Orders sync...");
+  
     await syncDTOrdersData();
     
   } catch (err) {
     console.warn(`YMDataStore connection failed: ${err.message}. DT Orders service will be unavailable.`);
   }
-
-  console.log("Current SQL Connection Status:", sqlConnectionStatus);
-  console.log("--- Server Initialization Complete ---");
 }
 
 // Start the server initialization
@@ -154,7 +147,6 @@ async function syncDTOrdersData() {
     const request = poolYMDataStore.request();
 
     // 1. Fetch Order Headers from YMDataStore (EXCLUDING Factory = 'YM' records)
-    console.log("📊 Fetching order headers from YMDataStore (excluding YM factory records)...");
     const orderHeaderQuery = `
       SELECT 
         h.[SC_Heading], h.[Factory], h.[SalesTeamName], h.[Cust_Code], h.[ShortName],
@@ -175,10 +167,8 @@ async function syncDTOrdersData() {
     `;
 
     const orderHeaderResult = await request.query(orderHeaderQuery);
-    console.log(`📊 Fetched ${orderHeaderResult.recordset.length} order headers (excluding YM factory)`);
 
     if (orderHeaderResult.recordset.length === 0) {
-      console.log("⚠️ No order headers found (after excluding YM factory)");
       return { success: true, message: "No order headers found (after excluding YM factory)" };
     }
 
@@ -189,16 +179,13 @@ async function syncDTOrdersData() {
     const BATCH_SIZE = 2000; // Keep under 2100 parameter limit
     const orderNoChunks = chunkArray(validOrderNos, BATCH_SIZE);
     
-    console.log(`📦 Processing ${validOrderNos.length} orders in ${orderNoChunks.length} batches of ${BATCH_SIZE}`);
 
     // 2. Fetch Order Colors from YMDataStore in batches
-    console.log("🎨 Fetching order colors and shipping data from YMDataStore in batches...");
     
     let allOrderColorsResults = [];
     
     for (let batchIndex = 0; batchIndex < orderNoChunks.length; batchIndex++) {
       const orderNoBatch = orderNoChunks[batchIndex];
-      console.log(`🔄 Processing batch ${batchIndex + 1}/${orderNoChunks.length} (${orderNoBatch.length} orders)`);
       
       const orderNoPlaceholders = orderNoBatch.map((_, index) => `@orderNo${index}`).join(',');
       
@@ -228,10 +215,8 @@ async function syncDTOrdersData() {
       const batchResult = await colorRequest.query(orderColorsQuery);
       allOrderColorsResults = allOrderColorsResults.concat(batchResult.recordset);
       
-      console.log(`✅ Batch ${batchIndex + 1} completed: ${batchResult.recordset.length} color records`);
     }
 
-    console.log(`🎨 Total fetched: ${allOrderColorsResults.length} order color records with shipping data`);
 
     // Create size mapping from database for each order
     const orderSizeMapping = new Map();
@@ -314,7 +299,6 @@ async function syncDTOrdersData() {
     }
 
     // Process Data
-    console.log("🔄 Processing and organizing data...");
     const orderMap = new Map();
 
     // 1. Process Order Headers
@@ -348,7 +332,6 @@ async function syncDTOrdersData() {
       }
     });
 
-    console.log(`📋 Processed ${orderMap.size} unique orders (excluding YM factory)`);
 
     // 2. Process Order Colors and extract shipping data
     const colorSummaryMap = new Map();
@@ -399,7 +382,6 @@ async function syncDTOrdersData() {
       }
     });
 
-    console.log(`🎨 Processed ${colorSummaryMap.size} color combinations`);
 
     // Convert color summaries to the desired format
     const colorMap = new Map();
@@ -457,21 +439,11 @@ async function syncDTOrdersData() {
     // 4. Save to MongoDB
     console.log("💾 Saving to MongoDB...");
     const finalDocs = Array.from(orderMap.values());
-    console.log(`📄 Prepared ${finalDocs.length} documents for MongoDB (excluding YM factory)`);
 
     // Debug: Log a sample document to verify shipping fields
-    if (finalDocs.length > 0) {
-      console.log("📋 Sample document with shipping fields:", {
-        Order_No: finalDocs[0].Order_No,
-        Mode: finalDocs[0].Mode,
-        Country: finalDocs[0].Country,
-        Origin: finalDocs[0].Origin,
-        CustPORef: finalDocs[0].CustPORef
-      });
-    }
+   
 
     if (finalDocs.length === 0) {
-      console.log("⚠️ No documents to save (after excluding YM factory)");
       return { success: true, message: "No documents to save (after excluding YM factory)" };
     }
 
@@ -485,9 +457,6 @@ async function syncDTOrdersData() {
 
     try {
       const result = await DtOrder.bulkWrite(bulkOps);
-      
-      console.log("✅ DT Orders data migration completed successfully (excluding YM factory)!");
-      console.log(`📊 Results: ${result.upsertedCount} inserted, ${result.modifiedCount} modified`);
       
       return {
         success: true,
@@ -503,7 +472,6 @@ async function syncDTOrdersData() {
     }
 
   } catch (error) {
-    console.error("❌ DT Orders sync failed:", error);
     console.error("Error details:", {
       message: error.message,
       stack: error.stack
